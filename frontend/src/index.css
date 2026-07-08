@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-kraft text-ink font-sans;
+}
+
+/* Etiqueta de preço: cartão levemente torto, com furo de barbante */
+.tag-card {
+  position: relative;
+  background: theme('colors.paper');
+  border: 1px solid rgba(31, 42, 36, 0.15);
+  border-radius: 3px 16px 3px 3px;
+  transform: rotate(-0.6deg);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.tag-card:nth-of-type(even) {
+  transform: rotate(0.5deg);
+}
+.tag-card:hover {
+  transform: rotate(0deg) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(31, 42, 36, 0.1);
+}
+.tag-hole {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: theme('colors.kraft');
+  border: 1px solid rgba(31, 42, 36, 0.3);
+}
+
+/* Carimbo de alerta, tipo "REPOR ESTOQUE" batido a tinta */
+.stamp {
+  position: absolute;
+  top: 10px;
+  right: -4px;
+  transform: rotate(7deg);
+  border: 1.5px solid theme('colors.stamp');
+  color: theme('colors.stamp');
+  padding: 2px 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  background: rgba(178, 58, 46, 0.06);
+  pointer-events: none;
+}
+
+/* Guias de pasta para trocar de loja */
+.folder-tab {
+  position: relative;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid rgba(31, 42, 36, 0.15);
+  border-bottom: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag-card,
+  .tag-card:hover {
+    transition: none;
+    transform: none;
+  }
+}
