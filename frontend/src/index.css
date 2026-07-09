@@ -3,25 +3,44 @@
 @tailwind utilities;
 
 body {
-  @apply bg-kraft text-ink font-sans;
+  @apply bg-kraft text-ink font-sans antialiased;
 }
 
-/* Etiqueta de preço: cartão levemente torto, com furo de barbante */
+/* Grain texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Tag card - papel kraft perfurado */
 .tag-card {
   position: relative;
   background: theme('colors.paper');
-  border: 1px solid rgba(31, 42, 36, 0.15);
-  border-radius: 3px 16px 3px 3px;
+  border: 1px solid rgba(31, 42, 36, 0.12);
+  border-radius: 3px 20px 3px 3px;
   transform: rotate(-0.6deg);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(31, 42, 36, 0.06);
 }
 .tag-card:nth-of-type(even) {
   transform: rotate(0.5deg);
 }
 .tag-card:hover {
-  transform: rotate(0deg) translateY(-2px);
-  box-shadow: 0 6px 16px rgba(31, 42, 36, 0.1);
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow: 0 12px 28px -8px rgba(31, 42, 36, 0.12);
 }
+.tag-card:has(.tag-card-edit-active) {
+  transform: rotate(0deg);
+}
+
 .tag-hole {
   position: absolute;
   top: 10px;
@@ -31,9 +50,10 @@ body {
   border-radius: 50%;
   background: theme('colors.kraft');
   border: 1px solid rgba(31, 42, 36, 0.3);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
-/* Carimbo de alerta, tipo "REPOR ESTOQUE" batido a tinta */
+/* Selo vermelho "REPOR ESTOQUE" */
 .stamp {
   position: absolute;
   top: 10px;
@@ -50,18 +70,102 @@ body {
   pointer-events: none;
 }
 
-/* Guias de pasta para trocar de loja */
+/* Abas de loja (folder tabs) */
 .folder-tab {
   position: relative;
   border-radius: 8px 8px 0 0;
-  border: 1px solid rgba(31, 42, 36, 0.15);
+  border: 1px solid rgba(31, 42, 36, 0.12);
   border-bottom: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.folder-tab:not(.bg-paper):hover {
+  background: rgba(251, 249, 243, 0.4);
+}
+
+/* Staggered card entry animation */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.card-enter {
+  animation: card-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(31, 42, 36, 0.06) 25%,
+    rgba(31, 42, 36, 0.02) 37%,
+    rgba(31, 42, 36, 0.06) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* Toast notification */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-8px) scale(0.96); }
+}
+.toast-enter {
+  animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.toast-exit {
+  animation: toast-out 0.2s ease-in both;
+}
+
+/* Botões com press feedback */
+.btn-press {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.2s ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Input focus refinado */
+.input-tag {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-tag:focus {
+  border-color: rgba(31, 42, 36, 0.4);
+  box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.08);
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tag-card,
-  .tag-card:hover {
-    transition: none;
-    transform: none;
+  .tag-card:hover,
+  .card-enter,
+  .skeleton,
+  .toast-enter,
+  .toast-exit,
+  .btn-press,
+  .input-tag {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
   }
 }

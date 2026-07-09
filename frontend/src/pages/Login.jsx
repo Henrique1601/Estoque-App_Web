@@ -25,8 +25,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-kraft">
-      <form onSubmit={handleSubmit} className="tag-card p-8 pl-9 w-full max-w-sm space-y-4">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-kraft p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="tag-card p-8 pl-9 w-full max-w-sm space-y-5 card-enter"
+        style={{ animationDelay: '0s' }}
+      >
         <span className="tag-hole" aria-hidden="true" />
 
         <h1 className="font-mono text-lg font-medium text-ink text-center tracking-wide">
@@ -34,33 +38,42 @@ export default function Login() {
         </h1>
 
         <div>
-          <label className="block text-xs text-twine mb-1 font-mono">email</label>
+          <label className="block text-xs text-twine mb-1.5 font-mono uppercase tracking-wider">
+            email
+          </label>
           <input
             type="email"
             required
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 bg-paper focus:outline-none focus:ring-2 focus:ring-ink/30"
+            className="w-full border border-ink/20 rounded-md px-3 py-2.5 bg-paper text-sm input-tag"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-twine mb-1 font-mono">senha</label>
+          <label className="block text-xs text-twine mb-1.5 font-mono uppercase tracking-wider">
+            senha
+          </label>
           <input
             type="password"
             required
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 bg-paper focus:outline-none focus:ring-2 focus:ring-ink/30"
+            className="w-full border border-ink/20 rounded-md px-3 py-2.5 bg-paper text-sm input-tag"
           />
         </div>
 
-        {erro && <p className="text-sm text-stamp font-mono">{erro}</p>}
+        {erro && (
+          <p className="text-sm text-stamp font-mono bg-stamp/5 border border-stamp/20 rounded-md px-3 py-2">
+            {erro}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={carregando}
-          className="w-full bg-ink text-paper rounded-md py-2 font-medium hover:bg-ink/85 disabled:opacity-50"
+          className="w-full bg-ink text-paper rounded-md py-2.5 font-medium btn-press disabled:opacity-50 text-sm"
         >
           {carregando ? 'entrando...' : 'entrar'}
         </button>
