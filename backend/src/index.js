@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 
+import { migrate } from './migrate.js';
+
+await migrate();
+
 import authRoutes from './routes/auth.js';
 import produtosRoutes from './routes/produtos.js';
 import lojasRoutes from './routes/lojas.js';
