@@ -15,30 +15,41 @@ export async function migrate() {
     }
   }
 
+  // Remove constraint UNIQUE existente se foi adicionada antes da migration
   try {
-    // Renomeia lojas antigas para os nomes definitivos
+    await pool.query(`ALTER TABLE lojas ADD CONSTRAINT lojas_nome_key UNIQUE (nome)`);
+    console.log('Migration: unique constraint adicionada em lojas.nome');
+  } catch (_) {}
+
+  // Deduplica lojas: mantém o menor ID de cada nome, remove duplicatas
+  try {
+    await pool.query(`
+      DELETE FROM lojas WHERE id NOT IN (
+        SELECT MIN(id) FROM lojas GROUP BY nome
+      )
+    `);
+    console.log('Migration: lojas duplicadas removidas');
+  } catch (_) {}
+
+  // Renomeia lojas antigas
+  try {
     await pool.query(`UPDATE lojas SET nome = 'Central de Estoque' WHERE nome = 'Loja Centro'`);
     await pool.query(`UPDATE lojas SET nome = 'Loja Games' WHERE nome = 'Loja Shopping'`);
     await pool.query(`UPDATE lojas SET nome = 'Loja Litoral' WHERE nome = 'Litoral e Games'`);
+    console.log('Migration: lojas renomeadas');
+  } catch (_) {}
 
-    const { rows: lojas } = await pool.query('SELECT id, nome FROM lojas ORDER BY id');
-    const usuarios = [
-      { nome: 'Admin', email: 'admin@admin.com', senha: 'admin123', role: 'admin', loja_id: null },
-    ];
-    if (lojas[0]) usuarios.push({ nome: 'Gerente Central', email: 'central@estoque.com', senha: 'central123', role: 'gerente', loja_id: lojas[0].id });
-    if (lojas[1]) usuarios.push({ nome: 'Gerente Games', email: 'games@estoque.com', senha: 'games123', role: 'gerente', loja_id: lojas[1].id });
-    if (lojas[2]) usuarios.push({ nome: 'Gerente Litoral', email: 'litoral@estoque.com', senha: 'litoral123', role: 'gerente', loja_id: lojas[2].id });
-
-    for (const u of usuarios) {
-      const hash = await bcrypt.hash(u.senha, 10);
-      await pool.query(
-        `INSERT INTO users (nome, email, senha_hash, role, loja_id)
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO NOTHING`,
-        [u.nome, u.email, hash, u.role, u.loja_id]
-      );
-    }
-    console.log('Migration: lojas renomeadas e usuários seed criados');
+  // Cria apenas o admin
+  try {
+    const hash = await bcrypt.hash('admin123', 10);
+    await pool.query(
+      `INSERT INTO users (nome, email, senha_hash, role, loja_id)
+       VALUES ('Admin', 'admin@admin.com', $1, 'admin', null)
+       ON CONFLICT (email) DO NOTHING`,
+      [hash]
+    );
+    console.log('Migration: usuario admin criado');
   } catch (err) {
-    console.error('Migration: erro ao configurar dados iniciais', err.message);
+    console.error('Migration: erro ao criar admin', err.message);
   }
 }

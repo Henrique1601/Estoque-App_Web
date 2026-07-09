@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api.js';
 
-export default function Login() {
+export default function Register() {
+  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
-  const { login } = useAuth();
+  const { setAuth } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -15,7 +17,8 @@ export default function Login() {
     setErro('');
     setCarregando(true);
     try {
-      await login(email, senha);
+      const data = await api.register(nome, email, senha);
+      setAuth(data);
       navigate('/');
     } catch (err) {
       setErro(err.message);
@@ -34,15 +37,26 @@ export default function Login() {
         <span className="tag-hole" aria-hidden="true" />
 
         <h1 className="font-mono text-lg font-medium text-ink text-center tracking-wide">
-          ESTOQUE<span className="text-stamp">•</span>CONTROLE
+          Criar conta
         </h1>
+
+        <div>
+          <label className="block text-xs text-twine mb-1.5 font-mono uppercase tracking-wider">nome</label>
+          <input
+            type="text"
+            required
+            autoFocus
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className="w-full border border-ink/20 rounded-md px-3 py-2.5 bg-paper text-sm input-tag"
+          />
+        </div>
 
         <div>
           <label className="block text-xs text-twine mb-1.5 font-mono uppercase tracking-wider">email</label>
           <input
             type="email"
             required
-            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-ink/20 rounded-md px-3 py-2.5 bg-paper text-sm input-tag"
@@ -54,6 +68,7 @@ export default function Login() {
           <input
             type="password"
             required
+            minLength={6}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             className="w-full border border-ink/20 rounded-md px-3 py-2.5 bg-paper text-sm input-tag"
@@ -69,17 +84,13 @@ export default function Login() {
           disabled={carregando}
           className="w-full bg-ink text-paper rounded-md py-2.5 font-medium btn-press disabled:opacity-50 text-sm"
         >
-          {carregando ? 'entrando...' : 'entrar'}
+          {carregando ? 'criando...' : 'criar conta'}
         </button>
 
-        <div className="flex justify-between text-xs font-mono">
-          <Link to="/register" className="text-twine hover:text-ink underline hover:no-underline">
-            criar conta
-          </Link>
-          <Link to="/esqueci-senha" className="text-twine hover:text-ink underline hover:no-underline">
-            esqueci a senha
-          </Link>
-        </div>
+        <p className="text-xs text-center text-twine font-mono">
+          já tem conta?{' '}
+          <Link to="/login" className="text-ink underline hover:no-underline">entrar</Link>
+        </p>
       </form>
     </div>
   );

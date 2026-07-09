@@ -1,7 +1,7 @@
 -- Tabela de lojas
 CREATE TABLE IF NOT EXISTS lojas (
   id SERIAL PRIMARY KEY,
-  nome VARCHAR(100) NOT NULL
+  nome VARCHAR(100) NOT NULL UNIQUE
 );
 
 -- Tabela de usuários
@@ -37,10 +37,14 @@ CREATE TABLE IF NOT EXISTS cotacao_cache (
   atualizado_em TIMESTAMP DEFAULT NOW()
 );
 
--- Dados de exemplo
-INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja Litoral')
-  ON CONFLICT DO NOTHING;
+-- Tokens para redefinição de senha
+CREATE TABLE IF NOT EXISTS reset_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(255) NOT NULL,
+  expira_em TIMESTAMP NOT NULL DEFAULT NOW() + INTERVAL '1 hour'
+);
 
--- Senha de exemplo para os dois usuários abaixo: "123456"
--- (o hash foi gerado com bcryptjs, troque as senhas reais depois de subir o app)
--- Rode o script backend/db/seed.js para criar usuários com senha à sua escolha.
+-- Lojas iniciais
+INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja Litoral')
+  ON CONFLICT (nome) DO NOTHING;

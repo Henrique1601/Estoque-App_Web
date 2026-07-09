@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 
 function RotaPrivada({ children }) {
@@ -13,6 +15,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/esqueci-senha" element={<ForgotPassword />} />
       <Route
         path="/"
         element={

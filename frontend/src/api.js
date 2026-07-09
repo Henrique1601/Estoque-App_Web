@@ -28,6 +28,15 @@ export const api = {
   login: (email, senha) =>
     request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
 
+  register: (nome, email, senha) =>
+    request('/api/auth/register', { method: 'POST', body: JSON.stringify({ nome, email, senha }) }),
+
+  esqueciSenha: (email) =>
+    request('/api/auth/esqueci-senha', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  redefinirSenha: (token, senha) =>
+    request('/api/auth/redefinir-senha', { method: 'POST', body: JSON.stringify({ token, senha }) }),
+
   listarLojas: () => request('/api/lojas'),
 
   listarProdutos: (lojaId, categoria) => {
