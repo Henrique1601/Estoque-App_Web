@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
-import { autenticar } from '../middleware/auth.js';
+import { autenticar, autorizar, filtrarVendedor, somenteRole } from '../middleware/auth.js';
 import { obterCotacao, recalcularPrecos } from '../utils/cotacao.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 router.use(autenticar);
+
+const STATUS_VALIDOS = ['disponivel', 'reservado', 'vendido'];
 
 function lojaPermitida(req, lojaId) {
   return req.usuario.role === 'admin' || Number(req.usuario.loja_id) === Number(lojaId);
@@ -28,6 +30,34 @@ function calcularMargem(produto) {
   return null;
 }
 
+function formatarProduto(p, cotacao) {
+  return { ...p, valor_brl: valorBrlFinal(p, cotacao), margem: calcularMargem(p) };
+}
+
+function filtrarLista(produtos, cotacao, req) {
+  return produtos.map((p) => filtrarVendedor(formatarProduto(p, cotacao), req.usuario.role));
+}
+
+// Monta WHERE dinâmico com condicoes comuns
+function montarWhere(req) {
+  const { role, loja_id } = req.usuario;
+  const { loja_id: filtroLoja, categoria, busca, status } = req.query;
+  const condicoes = [];
+  const params = [];
+
+  if (role === 'admin') {
+    if (filtroLoja) { params.push(filtroLoja); condicoes.push(`p.loja_id = $${params.length}`); }
+  } else {
+    params.push(loja_id); condicoes.push(`p.loja_id = $${params.length}`);
+  }
+
+  if (categoria) { params.push(categoria); condicoes.push(`p.categoria = $${params.length}`); }
+  if (busca) { params.push(`%${busca}%`); condicoes.push(`p.nome ILIKE $${params.length}`); }
+  if (status) { params.push(status); condicoes.push(`p.status = $${params.length}`); }
+
+  return { condicoes, params };
+}
+
 router.get('/categorias', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
   const params = [];
@@ -44,34 +74,13 @@ router.get('/categorias', asyncHandler(async (req, res) => {
 
 router.get('/', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
-  const { loja_id: filtroLoja, categoria, busca, sort_by, order, page, limit } = req.query;
+  const { sort_by, order, page, limit } = req.query;
 
-  const condicoes = [];
-  const params = [];
-
-  if (role === 'admin') {
-    if (filtroLoja) {
-      params.push(filtroLoja);
-      condicoes.push(`loja_id = $${params.length}`);
-    }
-  } else {
-    params.push(loja_id);
-    condicoes.push(`loja_id = $${params.length}`);
-  }
-
-  if (categoria) {
-    params.push(categoria);
-    condicoes.push(`categoria = $${params.length}`);
-  }
-
-  if (busca) {
-    params.push(`%${busca}%`);
-    condicoes.push(`nome ILIKE $${params.length}`);
-  }
+  const { condicoes, params } = montarWhere(req);
 
   const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
 
-  const countResult = await pool.query(`SELECT COUNT(*) FROM produtos${where}`, params);
+  const countResult = await pool.query(`SELECT COUNT(*) FROM produtos p${where}`, params);
   const total = parseInt(countResult.rows[0].count, 10);
 
   const colunasOrdenaveis = ['nome', 'valor_brl', 'valor_usd', 'quantidade', 'categoria', 'criado_em', 'atualizado_em'];
@@ -83,19 +92,12 @@ router.get('/', asyncHandler(async (req, res) => {
   const offset = (pageNum - 1) * limitNum;
 
   const { rows } = await pool.query(
-    `SELECT * FROM produtos${where} ORDER BY ${sortCol} ${sortDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    `SELECT p.* FROM produtos p${where} ORDER BY ${sortCol} ${sortDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, limitNum, offset]
   );
 
   const cotacao = await obterCotacao();
-
-  const produtos = rows.map((p) => ({
-    ...p,
-    valor_brl: valorBrlFinal(p, cotacao),
-    margem: calcularMargem(p),
-  }));
-
-  res.json({ produtos, cotacao, total, page: pageNum, limit: limitNum });
+  res.json({ produtos: filtrarLista(rows, cotacao, req), cotacao, total, page: pageNum, limit: limitNum });
 }));
 
 // Recalcula valor_brl de todos os produtos USD com a cotação atual
@@ -104,7 +106,7 @@ router.post('/recalcular', asyncHandler(async (req, res) => {
   res.json(resultado);
 }));
 
-// Comparação multi-lojas: produtos com mesmo nome entre lojas diferentes
+// Comparação multi-lojas
 router.get('/comparar', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
   const condicoes = [];
@@ -118,16 +120,16 @@ router.get('/comparar', asyncHandler(async (req, res) => {
   const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
   const cotacao = await obterCotacao();
   const { rows } = await pool.query(
-    `SELECT p.id, p.nome, p.loja_id, l.nome AS loja_nome, p.quantidade, p.valor_brl, p.valor_usd, p.moeda, p.cor, p.categoria, p.custo_usd, p.custo_brl
+    `SELECT p.id, p.nome, p.loja_id, l.nome AS loja_nome, p.quantidade, p.valor_brl, p.valor_usd, p.moeda, p.cor, p.categoria, p.custo_usd, p.custo_brl, p.status
      FROM produtos p JOIN lojas l ON l.id = p.loja_id${where} ORDER BY p.nome, l.nome`,
     params
   );
 
-  res.json(rows.map((p) => ({ ...p, margem: calcularMargem(p), valor_brl: valorBrlFinal(p, cotacao) })));
+  res.json(rows.map((p) => filtrarVendedor({ ...p, margem: calcularMargem(p), valor_brl: valorBrlFinal(p, cotacao) }, role)));
 }));
 
-// Exporta produtos como CSV
-router.get('/exportar', asyncHandler(async (req, res) => {
+// Exporta CSV
+router.get('/exportar', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
   const { loja_id: filtroLoja } = req.query;
 
@@ -143,14 +145,14 @@ router.get('/exportar', asyncHandler(async (req, res) => {
   const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
   const { rows } = await pool.query(`SELECT * FROM produtos${where} ORDER BY nome`, params);
 
-  const cabecalho = 'nome,moeda,valor_usd,valor_brl,custo_usd,custo_brl,quantidade,categoria,cor,codigo_barras,observacao\n';
+  const cabecalho = 'nome,moeda,valor_usd,valor_brl,custo_usd,custo_brl,quantidade,categoria,cor,codigo_barras,observacao,status\n';
   const linhas = rows.map((p) => {
     const esc = (v) => {
       if (v == null) return '';
       const s = String(v);
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [esc(p.nome), p.moeda, p.valor_usd ?? '', p.valor_brl ?? '', p.custo_usd ?? '', p.custo_brl ?? '', p.quantidade, esc(p.categoria), esc(p.cor), esc(p.codigo_barras), esc(p.observacao)].join(',');
+    return [esc(p.nome), p.moeda, p.valor_usd ?? '', p.valor_brl ?? '', p.custo_usd ?? '', p.custo_brl ?? '', p.quantidade, esc(p.categoria), esc(p.cor), esc(p.codigo_barras), esc(p.observacao), p.status ?? 'disponivel'].join(',');
   }).join('\n');
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -158,8 +160,8 @@ router.get('/exportar', asyncHandler(async (req, res) => {
   res.send(cabecalho + linhas);
 }));
 
-// Importa produtos via JSON array
-router.post('/importar', asyncHandler(async (req, res) => {
+// Importa CSV
+router.post('/importar', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { produtos: lista } = req.body;
   if (!Array.isArray(lista) || lista.length === 0) {
     return res.status(400).json({ erro: 'Envie um array "produtos" com pelo menos 1 item' });
@@ -262,10 +264,11 @@ router.post('/', asyncHandler(async (req, res) => {
     [req.usuario.id, rows[0].id, JSON.stringify({ nome, loja_id, moeda: moedaFinal })]
   );
 
-  res.status(201).json({ ...rows[0], margem: calcularMargem(rows[0]) });
+  const cotacao = await obterCotacao();
+  res.status(201).json(filtrarVendedor(formatarProduto(rows[0], cotacao), req.usuario.role));
 }));
 
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { nome, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
 
@@ -314,7 +317,72 @@ router.put('/:id', asyncHandler(async (req, res) => {
     [req.usuario.id, id, JSON.stringify({ before: atual.rows[0], after: rows[0] })]
   );
 
+  const cotacao = await obterCotacao();
   res.json({ ...rows[0], margem: calcularMargem(rows[0]) });
+}));
+
+// Mudar status + dados do cliente
+router.post('/:id/status', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, cliente_nome, cliente_telefone, cliente_observacao } = req.body;
+
+  if (!STATUS_VALIDOS.includes(status)) {
+    return res.status(400).json({ erro: 'Status inválido. Use: disponivel, reservado, vendido' });
+  }
+
+  const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
+  if (atual.rows.length === 0) return res.status(404).json({ erro: 'Produto não encontrado' });
+  if (!lojaPermitida(req, atual.rows[0].loja_id)) {
+    return res.status(403).json({ erro: 'Sem permissão para esse produto' });
+  }
+
+  const statusAtual = atual.rows[0].status;
+
+  // disponivel → reservado: obriga cliente_nome
+  if (status === 'reservado' && statusAtual === 'disponivel' && !cliente_nome) {
+    return res.status(400).json({ erro: 'Nome do cliente é obrigatório para reservar' });
+  }
+
+  // reservado → vendido: zera quantidade + movimentação
+  if (status === 'vendido' && statusAtual === 'reservado') {
+    const qtdAnterior = Number(atual.rows[0].quantidade);
+    await pool.query(
+      'UPDATE produtos SET status = $1, quantidade = 0, atualizado_em = NOW() WHERE id = $2',
+      [status, id]
+    );
+    await pool.query(
+      `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by)
+       VALUES ($1, 'saida', $2, $3, 0, $4)`,
+      [id, qtdAnterior, qtdAnterior, req.usuario.id]
+    );
+    await pool.query(
+      `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+       VALUES ($1, 'vender_produto', 'produto', $2, $3)`,
+      [req.usuario.id, id, JSON.stringify({ status: 'vendido', cliente_nome: atual.rows[0].cliente_nome })]
+    );
+  } else {
+    // demais transições
+    const sets = ['status = $1'];
+    const params = [status];
+    let idx = 2;
+    if (cliente_nome != null) { sets.push(`cliente_nome = $${idx}`); params.push(cliente_nome); idx++; }
+    if (cliente_telefone != null) { sets.push(`cliente_telefone = $${idx}`); params.push(cliente_telefone); idx++; }
+    if (cliente_observacao != null) { sets.push(`cliente_observacao = $${idx}`); params.push(cliente_observacao); idx++; }
+    params.push(id);
+    await pool.query(
+      `UPDATE produtos SET ${sets.join(', ')}, atualizado_em = NOW() WHERE id = $${idx}`,
+      params
+    );
+    await pool.query(
+      `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+       VALUES ($1, 'status_produto', 'produto', $2, $3)`,
+      [req.usuario.id, id, JSON.stringify({ de: statusAtual, para: status, cliente_nome })]
+    );
+  }
+
+  const { rows } = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
+  const cotacao = await obterCotacao();
+  res.json(filtrarVendedor(formatarProduto(rows[0], cotacao), req.usuario.role));
 }));
 
 router.post('/:id/venda', asyncHandler(async (req, res) => {
@@ -353,10 +421,11 @@ router.post('/:id/venda', asyncHandler(async (req, res) => {
     [req.usuario.id, id, JSON.stringify({ quantidade_vendida })]
   );
 
+  const cotacao = await obterCotacao();
   res.json({ ...rows[0], margem: calcularMargem(rows[0]) });
 }));
 
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
@@ -376,7 +445,7 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Relatórios agregados para gráficos
-router.get('/relatorios', asyncHandler(async (req, res) => {
+router.get('/relatorios', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
 
   const condProd = [];

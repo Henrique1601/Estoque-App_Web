@@ -13,10 +13,12 @@ export default function Navbar() {
         <Link to="/" className="font-mono font-medium tracking-wide text-sm md:text-base hover:opacity-80 transition-opacity">
           ESTOQUE<span className="text-stamp">•</span>CONTROLE
         </Link>
-        <Link to="/relatorios"
-          className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
-          relatórios
-        </Link>
+        {usuario.role !== 'vendedor' && (
+          <Link to="/relatorios"
+            className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
+            relatórios
+          </Link>
+        )}
         <Link to="/perfil"
           className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
           perfil

@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { autenticar } from '../middleware/auth.js';
+import { autenticar, autorizar } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -51,6 +51,34 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   res.json({ token, usuario: payload });
+}));
+
+// Admin cria usuário com papel específico
+router.post('/criar-usuario', autorizar('admin'), asyncHandler(async (req, res) => {
+  const { nome, email, senha, role, loja_id } = req.body;
+  if (!nome || !email || !senha || !role) {
+    return res.status(400).json({ erro: 'Nome, email, senha e role são obrigatórios' });
+  }
+  if (!['gerente', 'vendedor'].includes(role)) {
+    return res.status(400).json({ erro: 'Role deve ser gerente ou vendedor' });
+  }
+  if (senha.length < 6) {
+    return res.status(400).json({ erro: 'Senha deve ter no mínimo 6 caracteres' });
+  }
+
+  const existente = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existente.rows[0]) {
+    return res.status(409).json({ erro: 'Email já cadastrado' });
+  }
+
+  const hash = await bcrypt.hash(senha, 10);
+  const { rows } = await pool.query(
+    `INSERT INTO users (nome, email, senha_hash, role, loja_id)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id, nome, email, role, loja_id`,
+    [nome, email, hash, role, loja_id || null]
+  );
+
+  res.status(201).json({ usuario: rows[0], mensagem: 'Usuário criado com sucesso' });
 }));
 
 router.post('/register', asyncHandler(async (req, res) => {

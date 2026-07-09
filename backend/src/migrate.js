@@ -80,4 +80,28 @@ export async function migrate() {
     await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS custo_brl NUMERIC(10,2)`);
     console.log('Migration: coluna custo_brl adicionada em produtos');
   } catch (_) {}
+
+  // Adiciona coluna status e cliente
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'disponivel'`);
+    console.log('Migration: coluna status adicionada em produtos');
+  } catch (_) {}
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS cliente_nome VARCHAR(255)`);
+    console.log('Migration: coluna cliente_nome adicionada em produtos');
+  } catch (_) {}
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS cliente_telefone VARCHAR(50)`);
+    console.log('Migration: coluna cliente_telefone adicionada em produtos');
+  } catch (_) {}
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS cliente_observacao TEXT`);
+    console.log('Migration: coluna cliente_observacao adicionada em produtos');
+  } catch (_) {}
+
+  // Cria CHECK constraint para status se não existir
+  try {
+    await pool.query(`ALTER TABLE produtos ADD CONSTRAINT check_status CHECK (status IN ('disponivel', 'reservado', 'vendido'))`);
+    console.log('Migration: CHECK constraint para status adicionada');
+  } catch (_) {}
 }

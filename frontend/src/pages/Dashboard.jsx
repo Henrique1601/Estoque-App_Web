@@ -92,7 +92,7 @@ function CompararLojasModal({ produtos, carregando, aoFechar }) {
   );
 }
 
-function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
+function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar, papel }) {
   const ref = useRef(null);
   useFocusTrap(true, ref);
 
@@ -197,12 +197,14 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
           </div>
         </div>
 
-        <div>
-          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">custo ({form.moeda === 'USD' ? 'usd' : 'brl'})</label>
-          <input type="number" step="0.01" value={form.moeda === 'USD' ? form.custo_usd : form.custo_brl} placeholder="opcional"
-            onChange={(e) => setForm({ ...form, [form.moeda === 'USD' ? 'custo_usd' : 'custo_brl']: e.target.value })}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
-        </div>
+        {papel !== 'vendedor' && (
+          <div>
+            <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">custo ({form.moeda === 'USD' ? 'usd' : 'brl'})</label>
+            <input type="number" step="0.01" value={form.moeda === 'USD' ? form.custo_usd : form.custo_brl} placeholder="opcional"
+              onChange={(e) => setForm({ ...form, [form.moeda === 'USD' ? 'custo_usd' : 'custo_brl']: e.target.value })}
+              className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+          </div>
+        )}
 
         <div>
           <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">categoria</label>
@@ -267,6 +269,9 @@ export default function Dashboard() {
   const abas = lojasFisicas.length > 0
     ? [{ id: 'central', nome: 'Central de Estoque' }, ...lojasFisicas]
     : [];
+  const abasComVendidos = usuario.role === 'admin'
+    ? [...abas, { id: 'vendidos', nome: 'Vendidos' }]
+    : abas;
 
   useEffect(() => {
     api.listarLojas().then(setLojas);
@@ -317,7 +322,7 @@ export default function Dashboard() {
       setCarregando(true);
       setErroCarregar(null);
       try {
-        const lojaId = aba === 'central' ? undefined : aba;
+        const lojaId = aba === 'central' ? undefined : (aba === 'vendidos' ? undefined : aba);
         const data = await api.listarProdutos({
           lojaId,
           categoria: categoriaSelecionada || undefined,
@@ -326,6 +331,7 @@ export default function Dashboard() {
           order: sortOrder,
           page: pagina,
           limit: limite,
+          status: aba === 'vendidos' ? 'vendido' : undefined,
         });
         if (cancelado) return;
         setProdutos(data.produtos || data);
@@ -347,12 +353,13 @@ export default function Dashboard() {
     return l ? l.nome : null;
   }, [lojasFisicas]);
 
-  const valorTotalEstoque = produtos.reduce(
-    (soma, p) => soma + Number(p.valor_brl) * Number(p.quantidade), 0
-  );
+  const ehVendidos = aba === 'vendidos';
+  const valorTotalEstoque = ehVendidos
+    ? produtos.reduce((soma, p) => soma + Number(p.valor_brl), 0)
+    : produtos.reduce((soma, p) => soma + Number(p.valor_brl) * Number(p.quantidade), 0);
   const totalProdutos = produtos.length;
-  const totalItens = produtos.reduce((s, p) => s + Number(p.quantidade), 0);
-  const estoqueBaixoCount = produtos.filter((p) => p.quantidade <= 5).length;
+  const totalItens = ehVendidos ? 0 : produtos.reduce((s, p) => s + Number(p.quantidade), 0);
+  const estoqueBaixoCount = ehVendidos ? 0 : produtos.filter((p) => p.quantidade <= 5).length;
   const totalPaginas = Math.max(1, Math.ceil(total / limite));
 
   const lojaPadraoModal = aba === 'central' ? null : Number(aba);
@@ -392,9 +399,9 @@ export default function Dashboard() {
       <Navbar />
 
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
-        {usuario.role === 'admin' && abas.length > 0 && (
+        {(usuario.role === 'admin') && abasComVendidos.length > 0 && (
           <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Lojas">
-            {abas.map((ab) => (
+            {abasComVendidos.map((ab) => (
               <button
                 key={ab.id} role="tab" aria-selected={aba === ab.id}
                 onClick={() => setAba(ab.id)}
@@ -460,29 +467,32 @@ export default function Dashboard() {
             >
               recalcular
             </button>
-            <button
-              onClick={async () => {
-                try {
-                  const blob = await api.exportarCSV();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url; a.download = 'produtos.csv';
-                  document.body.appendChild(a); a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  addToast('CSV exportado', 'success');
-                } catch (err) {
-                  addToast('Erro ao exportar: ' + err.message, 'error');
-                }
-              }}
-              className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors"
-              aria-label="Exportar produtos como CSV"
-            >
-              csv
-            </button>
-            <label className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors cursor-pointer" aria-label="Importar produtos de CSV">
-              importar
-              <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
+            {usuario.role !== 'vendedor' && (
+              <button
+                onClick={async () => {
+                  try {
+                    const blob = await api.exportarCSV();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'produtos.csv';
+                    document.body.appendChild(a); a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    addToast('CSV exportado', 'success');
+                  } catch (err) {
+                    addToast('Erro ao exportar: ' + err.message, 'error');
+                  }
+                }}
+                className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors"
+                aria-label="Exportar produtos como CSV"
+              >
+                csv
+              </button>
+            )}
+            {usuario.role !== 'vendedor' && (
+              <label className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors cursor-pointer" aria-label="Importar produtos de CSV">
+                importar
+                <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 try {
@@ -505,6 +515,7 @@ export default function Dashboard() {
                 e.target.value = '';
               }} />
             </label>
+            )}
             <button
               onClick={async () => {
                 setMostrarComparar(true);
@@ -636,6 +647,7 @@ export default function Dashboard() {
           <ModalCriarProduto
             lojas={lojasFisicas}
             lojaPadrao={lojaPadraoModal}
+            papel={usuario.role}
             aoFechar={() => setMostrarModal(false)}
             aoCriar={() => {
               addToast('Produto adicionado', 'success');

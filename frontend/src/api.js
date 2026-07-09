@@ -107,4 +107,10 @@ export const api = {
 
   trocarSenha: (senha_atual, nova_senha) =>
     request('/api/auth/trocar-senha', { method: 'PUT', body: JSON.stringify({ senha_atual, nova_senha }) }),
+
+  atualizarStatus: (id, dados) =>
+    request(`/api/produtos/${id}/status`, { method: 'POST', body: JSON.stringify(dados) }),
+
+  criarUsuario: (dados) =>
+    request('/api/auth/criar-usuario', { method: 'POST', body: JSON.stringify(dados) }),
 };
