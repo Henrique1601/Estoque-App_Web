@@ -1,15 +1,25 @@
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTema } from '../context/ThemeContext.jsx';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
   const { usuario, logout } = useAuth();
   const { tema, alternarTema } = useTema();
+  const location = useLocation();
 
   return (
     <nav className="sticky top-0 z-40 bg-ink/95 backdrop-blur-sm text-paper px-6 py-3 flex justify-between items-center border-b border-paper/10">
-      <span className="font-mono font-medium tracking-wide text-sm md:text-base">
-        ESTOQUE<span className="text-stamp">•</span>CONTROLE
-      </span>
+      <div className="flex items-center gap-4">
+        <span className="font-mono font-medium tracking-wide text-sm md:text-base">
+          ESTOQUE<span className="text-stamp">•</span>CONTROLE
+        </span>
+        <Link
+          to={location.pathname === '/relatorios' ? '/' : '/relatorios'}
+          className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono"
+        >
+          {location.pathname === '/relatorios' ? 'estoque' : 'relatórios'}
+        </Link>
+      </div>
       <div className="flex items-center gap-3 md:gap-4 text-sm font-mono">
         <span className="hidden sm:inline text-paper/80">
           {usuario?.nome}

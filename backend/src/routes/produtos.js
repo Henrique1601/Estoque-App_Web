@@ -375,4 +375,95 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   res.status(204).send();
 }));
 
+// Relatórios agregados para gráficos
+router.get('/relatorios', asyncHandler(async (req, res) => {
+  const { role, loja_id } = req.usuario;
+
+  const condProd = [];
+  const params = [];
+  if (role !== 'admin') {
+    params.push(loja_id);
+    condProd.push(`p.loja_id = $${params.length}`);
+  }
+  const whereProd = condProd.length > 0 ? ' WHERE ' + condProd.join(' AND ') : '';
+  const condMov = role !== 'admin' ? [`m.produto_id IN (SELECT id FROM produtos WHERE loja_id = $1)`] : [];
+
+  const cotacao = await obterCotacao();
+
+  // Resumo
+  const { rows: [resumo] } = await pool.query(
+    `SELECT COUNT(*)::int AS "totalProdutos",
+            COALESCE(SUM(quantidade), 0)::int AS "totalItens",
+            COALESCE(SUM(CASE WHEN moeda='BRL' THEN valor_brl * quantidade ELSE ROUND(valor_usd * $1, 2) * quantidade END), 0) AS "valorEstoque",
+            COALESCE(SUM(CASE WHEN moeda='BRL' THEN COALESCE(custo_brl, 0) * quantidade ELSE COALESCE(ROUND(custo_usd * $1, 2), 0) * quantidade END), 0) AS "valorCusto"
+     FROM produtos p${whereProd}`,
+    [cotacao, ...params]
+  );
+
+  // Margem média
+  const { rows: produtosMargem } = await pool.query(
+    `SELECT moeda, valor_usd, valor_brl, custo_usd, custo_brl FROM produtos p${whereProd}`,
+    params
+  );
+  const margens = produtosMargem.map(calcularMargem).filter((m) => m != null);
+  const margemMedia = margens.length ? Number((margens.reduce((a, b) => a + b, 0) / margens.length).toFixed(1)) : null;
+
+  // Por categoria
+  const { rows: porCategoria } = await pool.query(
+    `SELECT COALESCE(categoria, 'sem categoria') AS categoria,
+            SUM(quantidade)::int AS quantidade,
+            COUNT(*)::int AS produtos
+     FROM produtos p${whereProd}
+     GROUP BY categoria ORDER BY quantidade DESC`,
+    params
+  );
+
+  // Por loja
+  const [whereLoja, lojaParams] = role !== 'admin'
+    ? [`WHERE p.loja_id = $2`, [cotacao, loja_id]]
+    : ['', [cotacao]];
+  const { rows: porLoja } = await pool.query(
+    `SELECT l.nome AS loja,
+            SUM(p.quantidade)::int AS itens,
+            COALESCE(SUM(CASE WHEN p.moeda='BRL' THEN p.valor_brl * p.quantidade ELSE ROUND(p.valor_usd * $1, 2) * p.quantidade END), 0) AS valor
+     FROM produtos p JOIN lojas l ON l.id = p.loja_id
+     ${whereLoja}
+     GROUP BY l.nome ORDER BY valor DESC`,
+    lojaParams
+  );
+
+  // Vendas últimos 30 dias
+  const movParams = role !== 'admin' ? [loja_id] : [];
+  const whereMov = condMov.length > 0 ? ' AND ' + condMov.join(' AND ') : '';
+  const { rows: vendas } = await pool.query(
+    `SELECT m.criado_em::date AS dia,
+            SUM(m.quantidade)::int AS quantidade,
+            COALESCE(SUM(ROUND(m.quantidade * CASE WHEN p.moeda='BRL' THEN p.valor_brl ELSE p.valor_usd * $1 END, 2)), 0) AS receita
+     FROM movimentacoes m JOIN produtos p ON p.id = m.produto_id
+     WHERE m.tipo = 'saida' AND m.criado_em >= NOW() - INTERVAL '30 days'${whereMov}
+     GROUP BY m.criado_em::date ORDER BY dia`,
+    [cotacao, ...movParams]
+  );
+
+  // Top 10 margens
+  const { rows: todos } = await pool.query(
+    `SELECT p.nome, l.nome AS loja_nome, p.moeda, p.valor_usd, p.valor_brl, p.custo_usd, p.custo_brl
+     FROM produtos p JOIN lojas l ON l.id = p.loja_id${whereProd}`,
+    params
+  );
+  const topMargens = todos
+    .map((p) => ({ nome: p.nome, margem: calcularMargem(p), loja: p.loja_nome }))
+    .filter((p) => p.margem != null)
+    .sort((a, b) => b.margem - a.margem)
+    .slice(0, 10);
+
+  res.json({
+    resumo: { ...resumo, margemMedia, totalProdutos: parseInt(resumo.totalProdutos, 10), totalItens: parseInt(resumo.totalItens, 10) },
+    porCategoria,
+    porLoja,
+    vendas,
+    topMargens,
+  });
+}));
+
 export default router;
