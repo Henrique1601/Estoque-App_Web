@@ -34,6 +34,25 @@ _Evitar_: Tag, label, seção
 **Estoque Baixo**: condição em que a quantidade de um produto é ≤5 unidades, exibindo alerta visual "REPOR ESTOQUE".
 _Evitar_: Alerta, warning, estoque crítico
 
+**Cor**: atributo opcional do produto (ex: "Preto", "Azul Celeste", "Titânio Natural"). Usado especialmente para celulares, onde a cor é um diferenciador importante. O modal de criação/edição oferece uma paleta com ~60 cores de celulares reais + campo para cor personalizada.
+_Evitar_: Color, variação
+
+**Modal de criação**: formulário que abre como overlay quando o usuário clica em "+ novo". Na [[Central de Estoque]] exibe um seletor de loja obrigatório; nas lojas individuais a loja é auto-preenchida.
+_Evitar_: Inline form, popup, dialog
+
+**Modal de edição**: formulário completo (nome, moeda, valor, quantidade, categoria, cor, observação) que substitui o antigo inline edit que só permitia nome e quantidade.
+_Evitar_: Inline edit, quick edit
+
+## Central de Estoque
+
+**Central de Estoque**: aba virtual que consolida produtos de **todas** as lojas físicas. Não é uma loja real no banco — é um filtro "sem loja_id" na query. Serve como visão gerencial do estoque total.
+_Evitar_: Todas as lojas, visão geral, loja central
+
+**Loja Física**: loja real no banco de dados (Loja Games, Loja Litoral). Ao selecionar uma aba de loja física, a query filtra por `loja_id`.
+_Evitar_: Loja virtual, departamento
+
+## Vendas
+
 **Venda**: registro de saída de produtos que decrementa a quantidade em estoque. Não há histórico persistido de vendas individuais.
 _Evitar_: Pedido, transação, saída
 

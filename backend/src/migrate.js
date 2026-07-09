@@ -52,4 +52,10 @@ export async function migrate() {
   } catch (err) {
     console.error('Migration: erro ao criar admin', err.message);
   }
+
+  // Adiciona coluna cor se não existir
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS cor VARCHAR(50)`);
+    console.log('Migration: coluna cor adicionada em produtos');
+  } catch (_) {}
 }

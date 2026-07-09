@@ -11,3 +11,4 @@ Comece por aqui:
 - [[Decisoes/0001-Stack React + Express + PostgreSQL|Stack]] — React, Express, PostgreSQL puro
 - [[Decisoes/0002-Precificacao USD e BRL|Precificação]] — USD com conversão vs BRL fixo
 - [[Decisoes/0003-Migration automatica no startup|Migration]] — schema executado no startup
+- [[Decisoes/0004-Cor como atributo de produto|Cor]] — campo opcional de cor para produtos

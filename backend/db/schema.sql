@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   valor_brl NUMERIC(10,2),
   quantidade INTEGER NOT NULL DEFAULT 0,
   categoria VARCHAR(50),
+  cor VARCHAR(50),
   observacao TEXT,
   atualizado_em TIMESTAMP DEFAULT NOW()
 );

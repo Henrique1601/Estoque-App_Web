@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, observacao } = req.body;
+  const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
 
   if (!nome || !loja_id || quantidade == null) {
     return res.status(400).json({ erro: 'Campos obrigatórios: nome, loja_id, quantidade' });
@@ -86,9 +86,9 @@ router.post('/', async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, observacao)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, observacao ?? null]
+    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null]
   );
 
   res.status(201).json(rows[0]);
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { nome, valor_usd, valor_brl, quantidade, categoria, observacao } = req.body;
+  const { nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
 
   const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
   if (atual.rows.length === 0) return res.status(404).json({ erro: 'Produto não encontrado' });
@@ -111,10 +111,11 @@ router.put('/:id', async (req, res) => {
        valor_brl = COALESCE($3, valor_brl),
        quantidade = COALESCE($4, quantidade),
        categoria = COALESCE($5, categoria),
-       observacao = COALESCE($6, observacao),
+       cor = COALESCE($6, cor),
+       observacao = COALESCE($7, observacao),
        atualizado_em = NOW()
-     WHERE id = $7 RETURNING *`,
-    [nome, valor_usd, valor_brl, quantidade, categoria, observacao, id]
+     WHERE id = $8 RETURNING *`,
+    [nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, id]
   );
 
   res.json(rows[0]);

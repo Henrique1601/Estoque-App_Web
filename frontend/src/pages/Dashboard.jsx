@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
 import Navbar from '../components/Navbar.jsx';
 import ProdutoCard from '../components/ProdutoCard.jsx';
-
-const PRODUTO_VAZIO = { nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', loja_id: '' };
 
 function SkeletonCard() {
   return (
@@ -19,8 +18,58 @@ function SkeletonCard() {
   );
 }
 
+function SelectorCores({ value, onChange }) {
+  const [pesquisa, setPesquisa] = useState('');
+  const filtradas = CORES_CELULAR.filter((c) =>
+    c.toLowerCase().includes(pesquisa.toLowerCase())
+  );
+
+  return (
+    <div>
+      <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">
+        cor
+      </label>
+      <input
+        type="text" placeholder="buscar ou digitar cor..." value={pesquisa}
+        onChange={(e) => setPesquisa(e.target.value)}
+        className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper mb-2"
+      />
+      {pesquisa && filtradas.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto mb-2 p-1.5 border border-ink/10 rounded-md bg-kraft-dark/10">
+          {filtradas.slice(0, 20).map((cor) => (
+            <button
+              key={cor} type="button"
+              onClick={() => { onChange(cor); setPesquisa(''); }}
+              className={`text-xs px-2 py-1 rounded border transition-all ${
+                value === cor
+                  ? 'bg-ink text-paper border-ink'
+                  : 'bg-paper text-ink/70 border-ink/15 hover:border-ink/40'
+              }`}
+            >
+              {cor}
+            </button>
+          ))}
+        </div>
+      )}
+      <input
+        type="text" placeholder="cor personalizada..." value={CORES_CELULAR.includes(value) ? '' : value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper"
+      />
+      {value && (
+        <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono">
+          <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
+            style={{ backgroundColor: corToHex(value) }}
+          />
+          {value}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
-  const [form, setForm] = useState({ ...PRODUTO_VAZIO, loja_id: lojaPadrao || (lojas[0]?.id || '') });
+  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', cor: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
 
@@ -37,6 +86,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
         valor_brl: form.moeda === 'BRL' ? Number(form.valor_brl) : undefined,
         quantidade: Number(form.quantidade),
         categoria: form.categoria || undefined,
+        cor: form.cor || undefined,
       });
       aoCriar();
       aoFechar();
@@ -50,10 +100,9 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && aoFechar()}>
-      <form
-        onSubmit={handleSubmit}
+      <form onSubmit={handleSubmit}
         className="tag-card p-6 w-full max-w-md space-y-3 card-enter"
-        style={{ animationDelay: '0s', transform: 'none' }}
+        style={{ animationDelay: '0s' }}
       >
         <span className="tag-hole" aria-hidden="true" />
         <h2 className="font-mono text-sm font-medium text-ink tracking-wide">Novo produto</h2>
@@ -61,9 +110,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
         {!lojaPadrao && (
           <div>
             <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">loja</label>
-            <select
-              required
-              value={form.loja_id}
+            <select required value={form.loja_id}
               onChange={(e) => setForm({ ...form, loja_id: e.target.value })}
               className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper"
             >
@@ -120,6 +167,8 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
         </div>
 
+        <SelectorCores value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />
+
         {erro && <p className="text-sm text-stamp font-mono">{erro}</p>}
 
         <div className="flex gap-2 pt-1">
@@ -150,8 +199,9 @@ export default function Dashboard() {
   const [carregando, setCarregando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
 
-  const abas = lojas.length > 0
-    ? [{ id: 'central', nome: 'Central de Estoque' }, ...lojas]
+  const lojasFisicas = lojas.filter((l) => l.nome !== 'Central de Estoque');
+  const abas = lojasFisicas.length > 0
+    ? [{ id: 'central', nome: 'Central de Estoque' }, ...lojasFisicas]
     : [];
 
   useEffect(() => {
@@ -301,10 +351,13 @@ export default function Dashboard() {
 
         {mostrarModal && (
           <ModalCriarProduto
-            lojas={lojas}
+            lojas={lojasFisicas}
             lojaPadrao={lojaPadraoModal}
             aoFechar={() => setMostrarModal(false)}
-            aoCriar={() => addToast('Produto adicionado', 'success')}
+            aoCriar={() => {
+              addToast('Produto adicionado', 'success');
+              carregarProdutos();
+            }}
           />
         )}
       </div>

@@ -1,14 +1,159 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
+
+function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
+  const [form, setForm] = useState({
+    nome: produto.nome,
+    moeda: produto.moeda,
+    valor_usd: produto.valor_usd ?? '',
+    valor_brl: produto.valor_brl ?? '',
+    quantidade: produto.quantidade,
+    categoria: produto.categoria ?? '',
+    cor: produto.cor ?? '',
+    observacao: produto.observacao ?? '',
+  });
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErro('');
+    setSalvando(true);
+    try {
+      await api.atualizarProduto(produto.id, {
+        nome: form.nome,
+        valor_usd: form.moeda === 'USD' ? Number(form.valor_usd) : undefined,
+        valor_brl: form.moeda === 'BRL' ? Number(form.valor_brl) : undefined,
+        quantidade: Number(form.quantidade),
+        categoria: form.categoria || undefined,
+        cor: form.cor || undefined,
+        observacao: form.observacao || undefined,
+      });
+      aoSalvar();
+      aoFechar();
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4"
+      onClick={(e) => e.target === e.currentTarget && aoFechar()}>
+      <form onSubmit={handleSubmit}
+        className="tag-card p-6 w-full max-w-md space-y-3 card-enter"
+        style={{ animationDelay: '0s' }}
+      >
+        <span className="tag-hole" aria-hidden="true" />
+        <h2 className="font-mono text-sm font-medium text-ink tracking-wide">Editar produto</h2>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">produto</label>
+          <input required autoFocus value={form.nome}
+            onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+        </div>
+
+        <div className="flex gap-2">
+          <div className="w-24">
+            <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">moeda</label>
+            <select value={form.moeda}
+              onChange={(e) => setForm({ ...form, moeda: e.target.value })}
+              className="w-full border border-ink/20 rounded-md px-2 py-2 text-sm font-mono input-tag bg-paper">
+              <option value="USD">USD</option>
+              <option value="BRL">BRL</option>
+            </select>
+          </div>
+          {form.moeda === 'USD' ? (
+            <div className="flex-1">
+              <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">valor (usd)</label>
+              <input required type="number" step="0.01" value={form.valor_usd}
+                onChange={(e) => setForm({ ...form, valor_usd: e.target.value })}
+                className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+            </div>
+          ) : (
+            <div className="flex-1">
+              <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">valor (brl)</label>
+              <input required type="number" step="0.01" value={form.valor_brl}
+                onChange={(e) => setForm({ ...form, valor_brl: e.target.value })}
+                className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+            </div>
+          )}
+          <div className="w-20">
+            <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">qtd</label>
+            <input required type="number" value={form.quantidade}
+              onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+              className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">categoria</label>
+          <input value={form.categoria} placeholder="opcional"
+            onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">cor</label>
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2">
+            {CORES_CELULAR.slice(0, 30).map((cor) => (
+              <button key={cor} type="button"
+                onClick={() => setForm({ ...form, cor })}
+                className={`text-xs px-2 py-1 rounded border transition-all ${
+                  form.cor === cor
+                    ? 'bg-ink text-paper border-ink'
+                    : 'bg-paper text-ink/70 border-ink/15 hover:border-ink/40'
+                }`}>
+                {cor}
+              </button>
+            ))}
+          </div>
+          <input value={CORES_CELULAR.includes(form.cor) ? '' : form.cor}
+            placeholder="ou digite cor personalizada..."
+            onChange={(e) => setForm({ ...form, cor: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+          {form.cor && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono">
+              <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
+                style={{ backgroundColor: corToHex(form.cor) }}
+              />
+              {form.cor}
+            </span>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">observação</label>
+          <textarea value={form.observacao} rows={2}
+            onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+        </div>
+
+        {erro && <p className="text-sm text-stamp font-mono">{erro}</p>}
+
+        <div className="flex gap-2 pt-1">
+          <button type="submit" disabled={salvando}
+            className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50">
+            {salvando ? '...' : 'salvar'}
+          </button>
+          <button type="button" onClick={aoFechar}
+            className="border border-ink/20 px-4 py-2 rounded-md text-sm btn-press">
+            cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
 export default function ProdutoCard({ produto, onAtualizar }) {
   const [quantidadeVenda, setQuantidadeVenda] = useState(1);
   const [carregando, setCarregando] = useState(false);
   const [editando, setEditando] = useState(false);
-  const [editNome, setEditNome] = useState(produto.nome);
-  const [editQtd, setEditQtd] = useState(produto.quantidade);
-  const [salvando, setSalvando] = useState(false);
   const addToast = useToast();
 
   const estoqueBaixo = produto.quantidade <= 5;
@@ -27,137 +172,84 @@ export default function ProdutoCard({ produto, onAtualizar }) {
   }
 
   async function handleRemover() {
+    if (!confirm(`Remover "${produto.nome}" do estoque?`)) return;
     try {
       await api.removerProduto(produto.id);
-      addToast(`"${produto.nome}" removido do estoque`, 'success');
+      addToast(`"${produto.nome}" removido`, 'success');
       onAtualizar();
     } catch (err) {
       addToast(err.message, 'error');
     }
-  }
-
-  async function handleSalvarEdicao() {
-    setSalvando(true);
-    try {
-      await api.atualizarProduto(produto.id, {
-        nome: editNome,
-        quantidade: Number(editQtd),
-      });
-      addToast('Produto atualizado', 'success');
-      setEditando(false);
-      onAtualizar();
-    } catch (err) {
-      addToast(err.message, 'error');
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  function cancelarEdicao() {
-    setEditNome(produto.nome);
-    setEditQtd(produto.quantidade);
-    setEditando(false);
   }
 
   return (
-    <div className={`tag-card p-4 pl-6 ${editando ? 'tag-card-edit-active' : ''} card-enter`}
-      style={{ animationDelay: '0s' }}
-    >
+    <div className="tag-card p-4 pl-6 card-enter" style={{ animationDelay: '0s' }}>
       <span className="tag-hole" aria-hidden="true" />
       {estoqueBaixo && <span className="stamp">REPOR ESTOQUE</span>}
 
-      {editando ? (
-        <div className="space-y-2">
-          <input
-            value={editNome}
-            onChange={(e) => setEditNome(e.target.value)}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-medium input-tag bg-paper"
-            autoFocus
-          />
-          <div className="flex gap-2">
-            <div>
-              <label className="block text-[10px] text-twine font-mono mb-0.5">quantidade</label>
-              <input
-                type="number"
-                value={editQtd}
-                onChange={(e) => setEditQtd(e.target.value)}
-                className="w-20 border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleSalvarEdicao}
-              disabled={salvando}
-              className="text-xs bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-50"
-            >
-              {salvando ? 'salvando...' : 'salvar'}
-            </button>
-            <button
-              onClick={cancelarEdicao}
-              className="text-xs border border-ink/20 px-3 py-1.5 rounded-md btn-press"
-            >
-              cancelar
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-start justify-between gap-2 pr-16">
-            <h3 className="font-medium text-ink leading-tight">{produto.nome}</h3>
-          </div>
-          {produto.categoria && (
-            <span className="inline-block text-[10px] uppercase tracking-wide text-twine border border-twine/30 rounded-full px-2 py-0.5 mt-1.5">
-              {produto.categoria}
-            </span>
-          )}
-
-          <div className="mt-2 space-y-0.5 font-mono">
-            <p className="text-2xl font-semibold text-ink leading-none tracking-tight">
-              R$ {Number(produto.valor_brl).toFixed(2)}
-            </p>
-            {produto.moeda === 'USD' && (
-              <p className="text-xs text-twine">USD {Number(produto.valor_usd).toFixed(2)}</p>
-            )}
-            <p className={`text-sm ${estoqueBaixo ? 'text-stamp font-medium' : 'text-ink/70'}`}>
-              estoque: {produto.quantidade}
-            </p>
-          </div>
-
-          {produto.observacao && (
-            <p className="text-xs text-stamp/80 mt-1 italic leading-relaxed">{produto.observacao}</p>
-          )}
-
-          <div className="flex items-center gap-2 pt-3 border-t border-dashed border-ink/15 mt-3">
-            <input
-              type="number"
-              min="1"
-              max={produto.quantidade}
-              value={quantidadeVenda}
-              onChange={(e) => setQuantidadeVenda(e.target.value)}
-              className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
+      <div className="flex items-start justify-between gap-2 pr-16">
+        <h3 className="font-medium text-ink leading-tight">{produto.nome}</h3>
+        {produto.cor && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-ink/50 shrink-0 mt-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-full border border-ink/20"
+              style={{ backgroundColor: corToHex(produto.cor) }}
             />
-            <button
-              onClick={handleVender}
-              disabled={carregando || produto.quantidade === 0}
-              className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40"
-            >
-              {carregando ? '...' : 'Vender'}
-            </button>
-            <button
-              onClick={() => setEditando(true)}
-              className="text-xs text-twine hover:text-ink transition-colors ml-1"
-            >
-              editar
-            </button>
-            <button
-              onClick={handleRemover}
-              className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto"
-            >
-              remover
-            </button>
-          </div>
-        </>
+            {produto.cor}
+          </span>
+        )}
+      </div>
+
+      {produto.categoria && (
+        <span className="inline-block text-[10px] uppercase tracking-wide text-twine border border-twine/30 rounded-full px-2 py-0.5 mt-1.5">
+          {produto.categoria}
+        </span>
+      )}
+
+      <div className="mt-2 space-y-0.5 font-mono">
+        <p className="text-2xl font-semibold text-ink leading-none tracking-tight">
+          R$ {Number(produto.valor_brl).toFixed(2)}
+        </p>
+        {produto.moeda === 'USD' && (
+          <p className="text-xs text-twine">USD {Number(produto.valor_usd).toFixed(2)}</p>
+        )}
+        <p className={`text-sm ${estoqueBaixo ? 'text-stamp font-medium' : 'text-ink/70'}`}>
+          estoque: {produto.quantidade}
+        </p>
+      </div>
+
+      {produto.observacao && (
+        <p className="text-xs text-stamp/80 mt-1 italic leading-relaxed">{produto.observacao}</p>
+      )}
+
+      <div className="flex items-center gap-2 pt-3 border-t border-dashed border-ink/15 mt-3">
+        <input type="number" min="1" max={produto.quantidade}
+          value={quantidadeVenda}
+          onChange={(e) => setQuantidadeVenda(e.target.value)}
+          className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
+        />
+        <button onClick={handleVender} disabled={carregando || produto.quantidade === 0}
+          className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40">
+          {carregando ? '...' : 'Vender'}
+        </button>
+        <button onClick={() => setEditando(true)}
+          className="text-xs text-twine hover:text-ink transition-colors ml-1">
+          editar
+        </button>
+        <button onClick={handleRemover}
+          className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto">
+          remover
+        </button>
+      </div>
+
+      {editando && (
+        <ModalEditarProduto
+          produto={produto}
+          aoFechar={() => setEditando(false)}
+          aoSalvar={() => {
+            addToast('Produto atualizado', 'success');
+            onAtualizar();
+          }}
+        />
       )}
     </div>
   );
