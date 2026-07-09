@@ -389,10 +389,25 @@ export default function Dashboard() {
         <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {cotacao && (
-              <span className="text-xs font-mono text-twine bg-paper rounded-full px-3 py-1 border border-ink/10">
+              <span className="text-xs font-mono text-twine bg-paper rounded-full px-3 py-1 border border-ink/10 flex items-center gap-1.5">
                 usd/brl R$ {cotacao.toFixed(4)}
               </span>
             )}
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.recalcularPrecos();
+                  addToast(`${res.produtosAtualizados} produtos recalculados (R$ ${res.cotacao})`, 'success');
+                  setReloadKey((k) => k + 1);
+                } catch (err) {
+                  addToast('Erro ao recalcular: ' + err.message, 'error');
+                }
+              }}
+              className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors"
+              aria-label="Recalcular preços com a cotação atual"
+            >
+              recalcular
+            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">

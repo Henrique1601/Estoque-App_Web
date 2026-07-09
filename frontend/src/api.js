@@ -76,6 +76,8 @@ export const api = {
       body: JSON.stringify({ quantidade_vendida }),
     }),
 
+  recalcularPrecos: () => request('/api/produtos/recalcular', { method: 'POST' }),
+
   removerProduto: (id) => request(`/api/produtos/${id}`, { method: 'DELETE' }),
 
   logout: () => request('/api/auth/logout', { method: 'POST' }),

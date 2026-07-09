@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { autenticar } from '../middleware/auth.js';
-import { obterCotacao } from '../utils/cotacao.js';
+import { obterCotacao, recalcularPrecos } from '../utils/cotacao.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
@@ -83,6 +83,12 @@ router.get('/', asyncHandler(async (req, res) => {
   }));
 
   res.json({ produtos, cotacao, total, page: pageNum, limit: limitNum });
+}));
+
+// Recalcula valor_brl de todos os produtos USD com a cotação atual
+router.post('/recalcular', asyncHandler(async (req, res) => {
+  const resultado = await recalcularPrecos();
+  res.json(resultado);
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
