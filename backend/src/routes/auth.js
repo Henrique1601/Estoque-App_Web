@@ -35,6 +35,12 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     return res.status(401).json({ erro: 'Credenciais inválidas' });
   }
 
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+     VALUES ($1, 'login', 'usuario', $2, $3)`,
+    [usuario.id, usuario.id, JSON.stringify({ email })]
+  );
+
   const payload = {
     id: usuario.id,
     nome: usuario.nome,
@@ -123,7 +129,11 @@ router.post('/redefinir-senha', asyncHandler(async (req, res) => {
 
 // Logout (registro de auditoria)
 router.post('/logout', autenticar, asyncHandler(async (req, res) => {
-  console.log(`Logout: usuário ${req.usuario.id} (${req.usuario.email})`);
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id)
+     VALUES ($1, 'logout', 'usuario', $2)`,
+    [req.usuario.id, req.usuario.id]
+  );
   res.json({ mensagem: 'Logout realizado' });
 }));
 

@@ -47,6 +47,30 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
   expira_em TIMESTAMP NOT NULL DEFAULT NOW() + INTERVAL '1 hour'
 );
 
+-- Histórico de movimentações de estoque
+CREATE TABLE IF NOT EXISTS movimentacoes (
+  id SERIAL PRIMARY KEY,
+  produto_id INTEGER NOT NULL REFERENCES produtos(id),
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrada', 'saida', 'ajuste')),
+  quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+  saldo_anterior INTEGER NOT NULL,
+  saldo_posterior INTEGER NOT NULL,
+  observacao TEXT,
+  created_by INTEGER REFERENCES users(id),
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
+-- Logs de atividade do usuário
+CREATE TABLE IF NOT EXISTS logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  acao VARCHAR(50) NOT NULL,
+  entidade VARCHAR(50) NOT NULL,
+  entidade_id INTEGER,
+  detalhes JSONB,
+  criado_em TIMESTAMP DEFAULT NOW()
+);
+
 -- Lojas iniciais
 INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja Litoral')
   ON CONFLICT (nome) DO NOTHING;
@@ -55,3 +79,8 @@ INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja L
 CREATE INDEX IF NOT EXISTS idx_produtos_loja_id ON produtos(loja_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON produtos(categoria);
 CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_produto_id ON movimentacoes(produto_id);
+CREATE INDEX IF NOT EXISTS idx_movimentacoes_criado_em ON movimentacoes(criado_em);
+CREATE INDEX IF NOT EXISTS idx_logs_user_id ON logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_logs_acao ON logs(acao);
+CREATE INDEX IF NOT EXISTS idx_logs_criado_em ON logs(criado_em);

@@ -119,6 +119,20 @@ router.post('/', asyncHandler(async (req, res) => {
     [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null]
   );
 
+  const qtd = Number(quantidade);
+  if (qtd > 0) {
+    await pool.query(
+      `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by)
+       VALUES ($1, 'entrada', $2, 0, $2, $3)`,
+      [rows[0].id, qtd, req.usuario.id]
+    );
+  }
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+     VALUES ($1, 'criar_produto', 'produto', $2, $3)`,
+    [req.usuario.id, rows[0].id, JSON.stringify({ nome, loja_id, moeda: moedaFinal })]
+  );
+
   res.status(201).json(rows[0]);
 }));
 
@@ -136,6 +150,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
     return res.status(403).json({ erro: 'Sem permissão para esse produto' });
   }
 
+  const qtdAnterior = Number(atual.rows[0].quantidade);
+
   const { rows } = await pool.query(
     `UPDATE produtos SET
        nome = COALESCE(NULLIF($1, ''), nome),
@@ -148,6 +164,22 @@ router.put('/:id', asyncHandler(async (req, res) => {
        atualizado_em = NOW()
      WHERE id = $8 RETURNING *`,
     [nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, id]
+  );
+
+  const qtdPos = Number(rows[0].quantidade);
+  if (quantidade != null && qtdPos !== qtdAnterior) {
+    const diff = Math.abs(qtdPos - qtdAnterior);
+    await pool.query(
+      `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by, observacao)
+       VALUES ($1, 'ajuste', $2, $3, $4, $5, $6)`,
+      [id, diff, qtdAnterior, qtdPos, req.usuario.id, `Ajuste: ${qtdAnterior} → ${qtdPos}`]
+    );
+  }
+
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+     VALUES ($1, 'editar_produto', 'produto', $2, $3)`,
+    [req.usuario.id, id, JSON.stringify({ before: atual.rows[0], after: rows[0] })]
   );
 
   res.json(rows[0]);
@@ -170,10 +202,23 @@ router.post('/:id/venda', asyncHandler(async (req, res) => {
     return res.status(400).json({ erro: 'Estoque insuficiente' });
   }
 
+  const qtdAnterior = Number(atual.rows[0].quantidade);
+
   const { rows } = await pool.query(
     `UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = NOW()
      WHERE id = $2 RETURNING *`,
     [quantidade_vendida, id]
+  );
+
+  await pool.query(
+    `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by)
+     VALUES ($1, 'saida', $2, $3, $4, $5)`,
+    [id, quantidade_vendida, qtdAnterior, rows[0].quantidade, req.usuario.id]
+  );
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+     VALUES ($1, 'vender_produto', 'produto', $2, $3)`,
+    [req.usuario.id, id, JSON.stringify({ quantidade_vendida })]
   );
 
   res.json(rows[0]);
@@ -187,6 +232,12 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   if (!lojaPermitida(req, atual.rows[0].loja_id)) {
     return res.status(403).json({ erro: 'Sem permissão para esse produto' });
   }
+
+  await pool.query(
+    `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+     VALUES ($1, 'remover_produto', 'produto', $2, $3)`,
+    [req.usuario.id, id, JSON.stringify({ nome: atual.rows[0].nome, loja_id: atual.rows[0].loja_id })]
+  );
 
   await pool.query('DELETE FROM produtos WHERE id = $1', [id]);
   res.status(204).send();
