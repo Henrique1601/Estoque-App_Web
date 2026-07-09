@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { useToast } from '../context/ToastContext.jsx';
-import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
+import { corToHex } from '../constants/coresCelular.js';
 import { useFocusTrap, salvarFoco, restaurarFoco } from '../hooks/useFocusTrap.js';
 import ConfirmModal from './ConfirmModal.jsx';
+import SelectorCores from './SelectorCores.jsx';
 
 function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
   const ref = useRef(null);
@@ -126,33 +127,7 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
         </div>
 
-        <div>
-          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">cor</label>
-          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2" role="listbox" aria-label="Cores sugeridas">
-            {CORES_CELULAR.slice(0, 30).map((cor) => (
-              <button key={cor} type="button" role="option" aria-selected={form.cor === cor}
-                onClick={() => setForm({ ...form, cor })}
-                className={`text-xs px-2 py-1 rounded border transition-all ${
-                  form.cor === cor
-                    ? 'bg-ink text-paper border-ink'
-                    : 'bg-paper text-ink/70 border-ink/15 hover:border-ink/40'
-                }`}>
-                {cor}
-              </button>
-            ))}
-          </div>
-          <input value={CORES_CELULAR.includes(form.cor) ? '' : form.cor}
-            placeholder="ou digite cor personalizada..."
-            onChange={(e) => setForm({ ...form, cor: e.target.value })}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" aria-label="Cor personalizada" />
-          {form.cor && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono" aria-live="polite">
-              <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
-                style={{ backgroundColor: corToHex(form.cor) }} />
-              {form.cor}
-            </span>
-          )}
-        </div>
+        <SelectorCores simples value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />
 
         <div>
           <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">observação</label>

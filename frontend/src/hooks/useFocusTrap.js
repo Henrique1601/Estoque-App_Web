@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 const FOCO_ANTERIOR = typeof document !== 'undefined' ? document.activeElement : null;
 let FOCO_SALVO = FOCO_ANTERIOR;
