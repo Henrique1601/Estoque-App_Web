@@ -16,6 +16,18 @@ function valorBrlFinal(produto, cotacao) {
   return Number((produto.valor_usd * cotacao).toFixed(2));
 }
 
+function calcularMargem(produto) {
+  if (produto.moeda === 'USD' && produto.custo_usd != null && produto.valor_usd != null) {
+    const margem = ((Number(produto.valor_usd) - Number(produto.custo_usd)) / Number(produto.custo_usd)) * 100;
+    return Number(margem.toFixed(1));
+  }
+  if (produto.moeda === 'BRL' && produto.custo_brl != null && produto.valor_brl != null) {
+    const margem = ((Number(produto.valor_brl) - Number(produto.custo_brl)) / Number(produto.custo_brl)) * 100;
+    return Number(margem.toFixed(1));
+  }
+  return null;
+}
+
 router.get('/categorias', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
   const params = [];
@@ -80,6 +92,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const produtos = rows.map((p) => ({
     ...p,
     valor_brl: valorBrlFinal(p, cotacao),
+    margem: calcularMargem(p),
   }));
 
   res.json({ produtos, cotacao, total, page: pageNum, limit: limitNum });
@@ -103,13 +116,14 @@ router.get('/comparar', asyncHandler(async (req, res) => {
   }
 
   const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
+  const cotacao = await obterCotacao();
   const { rows } = await pool.query(
-    `SELECT p.id, p.nome, p.loja_id, l.nome AS loja_nome, p.quantidade, p.valor_brl, p.valor_usd, p.moeda, p.cor, p.categoria
+    `SELECT p.id, p.nome, p.loja_id, l.nome AS loja_nome, p.quantidade, p.valor_brl, p.valor_usd, p.moeda, p.cor, p.categoria, p.custo_usd, p.custo_brl
      FROM produtos p JOIN lojas l ON l.id = p.loja_id${where} ORDER BY p.nome, l.nome`,
     params
   );
 
-  res.json(rows);
+  res.json(rows.map((p) => ({ ...p, margem: calcularMargem(p), valor_brl: valorBrlFinal(p, cotacao) })));
 }));
 
 // Exporta produtos como CSV
@@ -129,14 +143,14 @@ router.get('/exportar', asyncHandler(async (req, res) => {
   const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
   const { rows } = await pool.query(`SELECT * FROM produtos${where} ORDER BY nome`, params);
 
-  const cabecalho = 'nome,moeda,valor_usd,valor_brl,quantidade,categoria,cor,codigo_barras,observacao\n';
+  const cabecalho = 'nome,moeda,valor_usd,valor_brl,custo_usd,custo_brl,quantidade,categoria,cor,codigo_barras,observacao\n';
   const linhas = rows.map((p) => {
     const esc = (v) => {
       if (v == null) return '';
       const s = String(v);
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [esc(p.nome), p.moeda, p.valor_usd ?? '', p.valor_brl ?? '', p.quantidade, esc(p.categoria), esc(p.cor), esc(p.codigo_barras), esc(p.observacao)].join(',');
+    return [esc(p.nome), p.moeda, p.valor_usd ?? '', p.valor_brl ?? '', p.custo_usd ?? '', p.custo_brl ?? '', p.quantidade, esc(p.categoria), esc(p.cor), esc(p.codigo_barras), esc(p.observacao)].join(',');
   }).join('\n');
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -181,9 +195,9 @@ router.post('/importar', asyncHandler(async (req, res) => {
       }
 
       const { rows } = await pool.query(
-        `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-        [item.nome, item.loja_id, moedaFinal, item.valor_usd ?? null, item.valor_brl ?? null, item.quantidade, item.categoria ?? null, item.cor ?? null, item.observacao ?? null, item.codigo_barras ?? null]
+        `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        [item.nome, item.loja_id, moedaFinal, item.valor_usd ?? null, item.valor_brl ?? null, item.custo_usd ?? null, item.custo_brl ?? null, item.quantidade, item.categoria ?? null, item.cor ?? null, item.observacao ?? null, item.codigo_barras ?? null]
       );
 
       await pool.query(
@@ -207,7 +221,7 @@ router.post('/importar', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
+  const { nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
 
   if (!nome || !loja_id || quantidade == null) {
     return res.status(400).json({ erro: 'Campos obrigatórios: nome, loja_id, quantidade' });
@@ -229,9 +243,9 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null, codigo_barras ?? null]
+    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, custo_usd ?? null, custo_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null, codigo_barras ?? null]
   );
 
   const qtd = Number(quantidade);
@@ -248,12 +262,12 @@ router.post('/', asyncHandler(async (req, res) => {
     [req.usuario.id, rows[0].id, JSON.stringify({ nome, loja_id, moeda: moedaFinal })]
   );
 
-  res.status(201).json(rows[0]);
+  res.status(201).json({ ...rows[0], margem: calcularMargem(rows[0]) });
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
+  const { nome, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
 
   if (quantidade != null && quantidade < 0) {
     return res.status(400).json({ erro: 'quantidade não pode ser negativa' });
@@ -272,14 +286,16 @@ router.put('/:id', asyncHandler(async (req, res) => {
        nome = COALESCE(NULLIF($1, ''), nome),
        valor_usd = COALESCE($2, valor_usd),
        valor_brl = COALESCE($3, valor_brl),
-       quantidade = COALESCE($4, quantidade),
-       categoria = COALESCE($5, categoria),
-       cor = COALESCE($6, cor),
-       observacao = COALESCE($7, observacao),
-       codigo_barras = COALESCE($8, codigo_barras),
+       custo_usd = COALESCE($4, custo_usd),
+       custo_brl = COALESCE($5, custo_brl),
+       quantidade = COALESCE($6, quantidade),
+       categoria = COALESCE($7, categoria),
+       cor = COALESCE($8, cor),
+       observacao = COALESCE($9, observacao),
+       codigo_barras = COALESCE($10, codigo_barras),
        atualizado_em = NOW()
-     WHERE id = $9 RETURNING *`,
-    [nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras ?? null, id]
+     WHERE id = $11 RETURNING *`,
+    [nome, valor_usd, valor_brl, custo_usd ?? null, custo_brl ?? null, quantidade, categoria, cor, observacao, codigo_barras ?? null, id]
   );
 
   const qtdPos = Number(rows[0].quantidade);
@@ -298,7 +314,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
     [req.usuario.id, id, JSON.stringify({ before: atual.rows[0], after: rows[0] })]
   );
 
-  res.json(rows[0]);
+  res.json({ ...rows[0], margem: calcularMargem(rows[0]) });
 }));
 
 router.post('/:id/venda', asyncHandler(async (req, res) => {
@@ -337,7 +353,7 @@ router.post('/:id/venda', asyncHandler(async (req, res) => {
     [req.usuario.id, id, JSON.stringify({ quantidade_vendida })]
   );
 
-  res.json(rows[0]);
+  res.json({ ...rows[0], margem: calcularMargem(rows[0]) });
 }));
 
 router.delete('/:id', asyncHandler(async (req, res) => {

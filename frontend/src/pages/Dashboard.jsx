@@ -155,7 +155,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
     return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
   }, [aoFechar]);
 
-  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', cor: '', codigo_barras: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
+  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', custo_usd: '', custo_brl: '', quantidade: '', categoria: '', cor: '', codigo_barras: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
 
@@ -170,6 +170,8 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
         moeda: form.moeda,
         valor_usd: form.moeda === 'USD' ? Number(form.valor_usd) : undefined,
         valor_brl: form.moeda === 'BRL' ? Number(form.valor_brl) : undefined,
+        custo_usd: form.moeda === 'USD' && form.custo_usd ? Number(form.custo_usd) : undefined,
+        custo_brl: form.moeda === 'BRL' && form.custo_brl ? Number(form.custo_brl) : undefined,
         quantidade: Number(form.quantidade),
         categoria: form.categoria || undefined,
         cor: form.cor || undefined,
@@ -245,6 +247,13 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
               onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
               className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">custo ({form.moeda === 'USD' ? 'usd' : 'brl'})</label>
+          <input type="number" step="0.01" value={form.moeda === 'USD' ? form.custo_usd : form.custo_brl} placeholder="opcional"
+            onChange={(e) => setForm({ ...form, [form.moeda === 'USD' ? 'custo_usd' : 'custo_brl']: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
         </div>
 
         <div>

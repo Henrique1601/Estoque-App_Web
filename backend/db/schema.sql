@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS produtos (
   moeda VARCHAR(3) NOT NULL DEFAULT 'USD' CHECK (moeda IN ('USD', 'BRL')),
   valor_usd NUMERIC(10,2) CHECK (valor_usd IS NULL OR valor_usd > 0),
   valor_brl NUMERIC(10,2) CHECK (valor_brl IS NULL OR valor_brl > 0),
+  custo_usd NUMERIC(10,2) CHECK (custo_usd IS NULL OR custo_usd > 0),
+  custo_brl NUMERIC(10,2) CHECK (custo_brl IS NULL OR custo_brl > 0),
   quantidade INTEGER NOT NULL DEFAULT 0 CHECK (quantidade >= 0),
   categoria VARCHAR(50),
   cor VARCHAR(50),

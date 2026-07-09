@@ -21,6 +21,7 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
   const [form, setForm] = useState({
     nome: produto.nome, moeda: produto.moeda,
     valor_usd: produto.valor_usd ?? '', valor_brl: produto.valor_brl ?? '',
+    custo_usd: produto.custo_usd ?? '', custo_brl: produto.custo_brl ?? '',
     quantidade: produto.quantidade, categoria: produto.categoria ?? '',
     cor: produto.cor ?? '', observacao: produto.observacao ?? '',
     codigo_barras: produto.codigo_barras ?? '',
@@ -37,6 +38,8 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
         nome: form.nome,
         valor_usd: form.moeda === 'USD' ? Number(form.valor_usd) : undefined,
         valor_brl: form.moeda === 'BRL' ? Number(form.valor_brl) : undefined,
+        custo_usd: form.moeda === 'USD' && form.custo_usd ? Number(form.custo_usd) : undefined,
+        custo_brl: form.moeda === 'BRL' && form.custo_brl ? Number(form.custo_brl) : undefined,
         quantidade: Number(form.quantidade),
         categoria: form.categoria || undefined,
         cor: form.cor || undefined,
@@ -100,6 +103,13 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
               onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
               className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">custo ({form.moeda === 'USD' ? 'usd' : 'brl'})</label>
+          <input type="number" step="0.01" value={form.moeda === 'USD' ? form.custo_usd : form.custo_brl} placeholder="opcional"
+            onChange={(e) => setForm({ ...form, [form.moeda === 'USD' ? 'custo_usd' : 'custo_brl']: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
         </div>
 
         <div>
@@ -245,6 +255,15 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
           </p>
           {produto.moeda === 'USD' && (
             <p className="text-xs text-twine">USD {Number(produto.valor_usd).toFixed(2)}</p>
+          )}
+          {produto.margem != null && (
+            <p className={`text-xs font-medium ${
+              produto.margem >= 30 ? 'text-[#2D6A4F]' :
+              produto.margem >= 10 ? 'text-twine' :
+              'text-stamp'
+            }`}>
+              Margem: {produto.margem}%
+            </p>
           )}
           <p className={`text-sm ${estoqueBaixo ? 'text-stamp font-medium' : 'text-ink/70'}`}>
             estoque: {produto.quantidade}
