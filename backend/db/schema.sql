@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS cotacao_cache (
 );
 
 -- Dados de exemplo
-INSERT INTO lojas (nome) VALUES ('Loja Centro'), ('Loja Shopping'), ('Litoral e Games')
+INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja Litoral')
   ON CONFLICT DO NOTHING;
 
 -- Senha de exemplo para os dois usuários abaixo: "123456"

@@ -16,12 +16,17 @@ export async function migrate() {
   }
 
   try {
+    // Renomeia lojas antigas para os nomes definitivos
+    await pool.query(`UPDATE lojas SET nome = 'Central de Estoque' WHERE nome = 'Loja Centro'`);
+    await pool.query(`UPDATE lojas SET nome = 'Loja Games' WHERE nome = 'Loja Shopping'`);
+    await pool.query(`UPDATE lojas SET nome = 'Loja Litoral' WHERE nome = 'Litoral e Games'`);
+
     const { rows: lojas } = await pool.query('SELECT id, nome FROM lojas ORDER BY id');
     const usuarios = [
       { nome: 'Admin', email: 'admin@admin.com', senha: 'admin123', role: 'admin', loja_id: null },
     ];
-    if (lojas[0]) usuarios.push({ nome: 'Gerente Centro', email: 'centro@estoque.com', senha: 'centro123', role: 'gerente', loja_id: lojas[0].id });
-    if (lojas[1]) usuarios.push({ nome: 'Gerente Shopping', email: 'shopping@estoque.com', senha: 'shopping123', role: 'gerente', loja_id: lojas[1].id });
+    if (lojas[0]) usuarios.push({ nome: 'Gerente Central', email: 'central@estoque.com', senha: 'central123', role: 'gerente', loja_id: lojas[0].id });
+    if (lojas[1]) usuarios.push({ nome: 'Gerente Games', email: 'games@estoque.com', senha: 'games123', role: 'gerente', loja_id: lojas[1].id });
     if (lojas[2]) usuarios.push({ nome: 'Gerente Litoral', email: 'litoral@estoque.com', senha: 'litoral123', role: 'gerente', loja_id: lojas[2].id });
 
     for (const u of usuarios) {
@@ -32,8 +37,8 @@ export async function migrate() {
         [u.nome, u.email, hash, u.role, u.loja_id]
       );
     }
-    console.log('Migration: usuários seed criados');
+    console.log('Migration: lojas renomeadas e usuários seed criados');
   } catch (err) {
-    console.error('Migration: erro ao criar usuários', err.message);
+    console.error('Migration: erro ao configurar dados iniciais', err.message);
   }
 }

@@ -21,7 +21,7 @@ if (!ARQUIVO) {
   process.exit(1);
 }
 
-const NOME_LOJA = 'Litoral e Games';
+const NOME_LOJA = 'Loja Litoral';
 
 // categoria => nome da aba na planilha
 const ABAS = {
