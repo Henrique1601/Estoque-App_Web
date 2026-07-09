@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -68,6 +68,78 @@ function SelectorCores({ value, onChange }) {
           {value}
         </span>
       )}
+    </div>
+  );
+}
+
+function CompararLojasModal({ produtos, carregando, aoFechar }) {
+  const lojasSet = useMemo(() => {
+    const set = new Set();
+    produtos.forEach((p) => set.add(p.loja_nome));
+    return Array.from(set);
+  }, [produtos]);
+
+  const grupos = useMemo(() => {
+    const map = {};
+    produtos.forEach((p) => {
+      if (!map[p.nome]) map[p.nome] = {};
+      map[p.nome][p.loja_nome] = p;
+    });
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [produtos, lojasSet]);
+
+  const ref = useRef(null);
+  useFocusTrap(true, ref);
+
+  useEffect(() => {
+    salvarFoco();
+    function handleEsc(e) { if (e.key === 'Escape') aoFechar(); }
+    document.addEventListener('keydown', handleEsc);
+    return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
+  }, [aoFechar]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Comparar lojas"
+      onClick={(e) => e.target === e.currentTarget && aoFechar()}>
+      <div ref={ref} className="bg-paper rounded-md border border-ink/12 w-full max-w-3xl max-h-[80vh] flex flex-col card-enter">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-ink/10">
+          <h2 className="font-mono text-sm font-medium text-ink tracking-wide">Comparar lojas</h2>
+          <button onClick={aoFechar} className="text-ink/40 hover:text-ink text-lg leading-none">&times;</button>
+        </div>
+        <div className="overflow-auto p-5">
+          {carregando ? (
+            <p className="text-sm font-mono text-ink/40 text-center py-8">carregando...</p>
+          ) : grupos.length === 0 ? (
+            <p className="text-sm font-mono text-ink/40 text-center py-8">nenhum produto cadastrado</p>
+          ) : (
+            <table className="w-full text-sm font-mono">
+              <thead>
+                <tr className="border-b border-ink/10 text-left">
+                  <th className="py-2 pr-4 text-[10px] uppercase tracking-wider text-twine font-medium">Produto</th>
+                  {lojasSet.map((nome) => (
+                    <th key={nome} className="py-2 px-3 text-[10px] uppercase tracking-wider text-twine font-medium text-right whitespace-nowrap">{nome}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {grupos.map(([nome, lojas]) => (
+                  <tr key={nome} className="border-b border-ink/5 hover:bg-kraft/30 transition-colors">
+                    <td className="py-2.5 pr-4 text-ink whitespace-nowrap">{nome}</td>
+                    {lojasSet.map((lojaNome) => {
+                      const p = lojas[lojaNome];
+                      return (
+                        <td key={lojaNome} className={`py-2.5 px-3 text-right whitespace-nowrap ${p ? 'text-ink' : 'text-ink/20'}`}>
+                          {p ? `${p.quantidade}x` : '—'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -227,7 +299,11 @@ export default function Dashboard() {
   const [pagina, setPagina] = useState(1);
   const [total, setTotal] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const [mostrarComparar, setMostrarComparar] = useState(false);
+  const [dadosComparar, setDadosComparar] = useState([]);
+  const [carregandoComparar, setCarregandoComparar] = useState(false);
   const buscaRef = useRef(null);
+  const notificouBaixo = useRef(false);
   const limite = 20;
 
   const lojasFisicas = lojas.filter((l) => l.nome !== 'Central de Estoque');
@@ -259,6 +335,17 @@ export default function Dashboard() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
+
+  // Notificação de estoque baixo (uma vez por sessão)
+  useEffect(() => {
+    if (!carregando && produtos.length > 0 && !notificouBaixo.current) {
+      const baixos = produtos.filter((p) => p.quantidade <= 5);
+      if (baixos.length > 0) {
+        addToast(`${baixos.length} produto(s) com estoque baixo`, 'warning', 5000);
+      }
+      notificouBaixo.current = true;
+    }
+  }, [carregando, produtos, addToast]);
 
   // Reseta pra página 1 sempre que os filtros mudam
   useEffect(() => {
@@ -461,6 +548,25 @@ export default function Dashboard() {
                 e.target.value = '';
               }} />
             </label>
+            <button
+              onClick={async () => {
+                setMostrarComparar(true);
+                setCarregandoComparar(true);
+                try {
+                  const data = await api.compararProdutos();
+                  setDadosComparar(data);
+                } catch (err) {
+                  addToast('Erro ao carregar comparação', 'error');
+                  setMostrarComparar(false);
+                } finally {
+                  setCarregandoComparar(false);
+                }
+              }}
+              className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors"
+              aria-label="Comparar produtos entre lojas"
+            >
+              comparar
+            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
@@ -579,6 +685,15 @@ export default function Dashboard() {
               setPagina(1);
               setReloadKey((k) => k + 1);
             }}
+          />,
+          document.body
+        )}
+
+        {mostrarComparar && createPortal(
+          <CompararLojasModal
+            produtos={dadosComparar}
+            carregando={carregandoComparar}
+            aoFechar={() => setMostrarComparar(false)}
           />,
           document.body
         )}

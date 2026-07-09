@@ -97,4 +97,6 @@ export const api = {
 
   importarProdutos: (produtos) =>
     request('/api/produtos/importar', { method: 'POST', body: JSON.stringify({ produtos }) }),
+
+  compararProdutos: () => request('/api/produtos/comparar'),
 };

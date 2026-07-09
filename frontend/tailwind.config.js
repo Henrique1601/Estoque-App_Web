@@ -1,15 +1,16 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        kraft: '#E4DCC8',
-        'kraft-dark': '#C9BD9E',
-        paper: '#FBF9F3',
-        ink: '#1F2A24',
-        stamp: '#B23A2E',
-        twine: '#8B7355',
+        kraft: 'rgb(var(--kraft-rgb) / <alpha-value>)',
+        'kraft-dark': 'rgb(var(--kraft-dark-rgb) / <alpha-value>)',
+        paper: 'rgb(var(--paper-rgb) / <alpha-value>)',
+        ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
+        stamp: 'rgb(var(--stamp-rgb) / <alpha-value>)',
+        twine: 'rgb(var(--twine-rgb) / <alpha-value>)',
       },
       fontFamily: {
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],

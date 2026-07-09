@@ -91,6 +91,27 @@ router.post('/recalcular', asyncHandler(async (req, res) => {
   res.json(resultado);
 }));
 
+// Comparação multi-lojas: produtos com mesmo nome entre lojas diferentes
+router.get('/comparar', asyncHandler(async (req, res) => {
+  const { role, loja_id } = req.usuario;
+  const condicoes = [];
+  const params = [];
+
+  if (role !== 'admin') {
+    params.push(loja_id);
+    condicoes.push(`p.loja_id = $${params.length}`);
+  }
+
+  const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
+  const { rows } = await pool.query(
+    `SELECT p.id, p.nome, p.loja_id, l.nome AS loja_nome, p.quantidade, p.valor_brl, p.valor_usd, p.moeda, p.cor, p.categoria
+     FROM produtos p JOIN lojas l ON l.id = p.loja_id${where} ORDER BY p.nome, l.nome`,
+    params
+  );
+
+  res.json(rows);
+}));
+
 // Exporta produtos como CSV
 router.get('/exportar', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;

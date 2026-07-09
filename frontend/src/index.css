@@ -2,8 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --paper-rgb: 251 249 243;
+  --ink-rgb: 31 42 36;
+  --twine-rgb: 139 115 85;
+  --stamp-rgb: 178 58 46;
+  --kraft-rgb: 228 220 200;
+  --kraft-dark-rgb: 201 189 158;
+  --grain-opacity: 0.035;
+}
+
+.dark {
+  --paper-rgb: 30 30 46;
+  --ink-rgb: 232 224 213;
+  --twine-rgb: 160 137 107;
+  --stamp-rgb: 231 76 60;
+  --kraft-rgb: 18 18 18;
+  --kraft-dark-rgb: 26 26 26;
+  --grain-opacity: 0.025;
+}
+
 body {
   @apply bg-kraft text-ink font-sans antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Grain texture overlay */
@@ -13,29 +34,31 @@ body::before {
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: var(--grain-opacity);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
+  transition: opacity 0.3s ease;
 }
 
-/* Tag card - papel kraft perfurado */
+/* Tag card */
 .tag-card {
   position: relative;
-  background: theme('colors.paper');
-  border: 1px solid rgba(31, 42, 36, 0.12);
+  background: rgb(var(--paper-rgb));
+  border: 1px solid rgba(var(--ink-rgb) / 0.12);
   border-radius: 3px 20px 3px 3px;
   transform: rotate(-0.6deg);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(31, 42, 36, 0.06);
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.3s ease;
+  box-shadow: 0 2px 8px rgba(var(--ink-rgb) / 0.06);
 }
 .tag-card:nth-of-type(even) {
   transform: rotate(0.5deg);
 }
 .tag-card:hover {
   transform: rotate(0deg) translateY(-3px);
-  box-shadow: 0 12px 28px -8px rgba(31, 42, 36, 0.12);
+  box-shadow: 0 12px 28px -8px rgba(var(--ink-rgb) / 0.12);
 }
 .tag-card:has(.tag-card-edit-active) {
   transform: rotate(0deg);
@@ -48,8 +71,8 @@ body::before {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: theme('colors.kraft');
-  border: 1px solid rgba(31, 42, 36, 0.3);
+  background: rgb(var(--kraft-rgb));
+  border: 1px solid rgba(var(--ink-rgb) / 0.3);
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
@@ -59,30 +82,30 @@ body::before {
   top: 10px;
   right: -4px;
   transform: rotate(7deg);
-  border: 1.5px solid theme('colors.stamp');
-  color: theme('colors.stamp');
+  border: 1.5px solid rgb(var(--stamp-rgb));
+  color: rgb(var(--stamp-rgb));
   padding: 2px 8px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   letter-spacing: 0.04em;
   border-radius: 3px;
-  background: rgba(178, 58, 46, 0.06);
+  background: rgba(var(--stamp-rgb) / 0.06);
   pointer-events: none;
 }
 
-/* Abas de loja (folder tabs) */
+/* Abas de loja */
 .folder-tab {
   position: relative;
   border-radius: 8px 8px 0 0;
-  border: 1px solid rgba(31, 42, 36, 0.12);
+  border: 1px solid rgba(var(--ink-rgb) / 0.12);
   border-bottom: none;
   transition: background 0.2s ease, color 0.2s ease;
 }
 .folder-tab:not(.bg-paper):hover {
-  background: rgba(251, 249, 243, 0.4);
+  background: rgba(var(--paper-rgb) / 0.4);
 }
 
-/* Staggered card entry animation */
+/* Card entry animation */
 @keyframes card-enter {
   from {
     opacity: 0;
@@ -105,16 +128,16 @@ body::before {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(31, 42, 36, 0.06) 25%,
-    rgba(31, 42, 36, 0.02) 37%,
-    rgba(31, 42, 36, 0.06) 63%
+    rgba(var(--ink-rgb) / 0.06) 25%,
+    rgba(var(--ink-rgb) / 0.02) 37%,
+    rgba(var(--ink-rgb) / 0.06) 63%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 4px;
 }
 
-/* Toast notification */
+/* Toast */
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -136,7 +159,7 @@ body::before {
   animation: toast-out 0.2s ease-in both;
 }
 
-/* Botões com press feedback */
+/* Botões */
 .btn-press {
   transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
               background 0.2s ease;
@@ -145,25 +168,20 @@ body::before {
   transform: scale(0.97);
 }
 
-/* Input focus refinado */
+/* Input */
 .input-tag {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease,
+              background 0.3s ease;
 }
 .input-tag:focus {
-  border-color: rgba(31, 42, 36, 0.4);
-  box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.08);
+  border-color: rgba(var(--ink-rgb) / 0.4);
+  box-shadow: 0 0 0 3px rgba(var(--ink-rgb) / 0.08);
   outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tag-card,
-  .tag-card:hover,
-  .card-enter,
-  .skeleton,
-  .toast-enter,
-  .toast-exit,
-  .btn-press,
-  .input-tag {
+  .tag-card, .tag-card:hover, .card-enter, .skeleton,
+  .toast-enter, .toast-exit, .btn-press, .input-tag {
     transition: none !important;
     animation: none !important;
     transform: none !important;

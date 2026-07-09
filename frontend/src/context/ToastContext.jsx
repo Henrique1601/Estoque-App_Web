@@ -46,6 +46,8 @@ export function ToastProvider({ children }) {
                 ? 'bg-[#2D6A4F] text-paper border-[#40916C]'
                 : toast.type === 'error'
                 ? 'bg-stamp text-paper border-[#C94D3E]'
+                : toast.type === 'warning'
+                ? 'bg-[#B8860B] text-paper border-[#D4A017]'
                 : 'bg-ink text-paper border-[#3A4A42]'
             }`}
           >
