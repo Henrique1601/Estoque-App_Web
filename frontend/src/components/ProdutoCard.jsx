@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
@@ -194,72 +195,74 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
   }
 
   return (
-    <div className="tag-card p-4 pl-6 card-enter" style={{ animationDelay: '0s' }}>
-      <span className="tag-hole" aria-hidden="true" />
-      {estoqueBaixo && <span className="stamp" aria-live="polite">REPOR ESTOQUE</span>}
+    <>
+      <div className="tag-card p-4 pl-6 card-enter" style={{ animationDelay: '0s' }}>
+        <span className="tag-hole" aria-hidden="true" />
+        {estoqueBaixo && <span className="stamp" aria-live="polite">REPOR ESTOQUE</span>}
 
-      <div className="flex items-start justify-between gap-2 pr-16">
-        <h3 className="font-medium text-ink leading-tight">{produto.nome}</h3>
-        <span className="flex items-center gap-1.5 shrink-0 mt-0.5">
-          {lojaNome && (
-            <span className="text-[10px] font-mono text-ink/40 bg-ink/5 rounded px-1.5 py-0.5">{lojaNome}</span>
-          )}
-          {produto.cor && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-ink/50" aria-label={`Cor: ${produto.cor}`}>
-              <span className="inline-block w-2.5 h-2.5 rounded-full border border-ink/20"
-                style={{ backgroundColor: corToHex(produto.cor) }}
-              />
-              {produto.cor}
-            </span>
-          )}
-        </span>
-      </div>
+        <div className="flex items-start justify-between gap-2 pr-16">
+          <h3 className="font-medium text-ink leading-tight">{produto.nome}</h3>
+          <span className="flex items-center gap-1.5 shrink-0 mt-0.5">
+            {lojaNome && (
+              <span className="text-[10px] font-mono text-ink/40 bg-ink/5 rounded px-1.5 py-0.5">{lojaNome}</span>
+            )}
+            {produto.cor && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-ink/50" aria-label={`Cor: ${produto.cor}`}>
+                <span className="inline-block w-2.5 h-2.5 rounded-full border border-ink/20"
+                  style={{ backgroundColor: corToHex(produto.cor) }}
+                />
+                {produto.cor}
+              </span>
+            )}
+          </span>
+        </div>
 
-      {produto.categoria && (
-        <span className="inline-block text-[10px] uppercase tracking-wide text-twine border border-twine/30 rounded-full px-2 py-0.5 mt-1.5">
-          {produto.categoria}
-        </span>
-      )}
-
-      <div className="mt-2 space-y-0.5 font-mono">
-        <p className="text-2xl font-semibold text-ink leading-none tracking-tight">
-          R$ {Number(produto.valor_brl).toFixed(2)}
-        </p>
-        {produto.moeda === 'USD' && (
-          <p className="text-xs text-twine">USD {Number(produto.valor_usd).toFixed(2)}</p>
+        {produto.categoria && (
+          <span className="inline-block text-[10px] uppercase tracking-wide text-twine border border-twine/30 rounded-full px-2 py-0.5 mt-1.5">
+            {produto.categoria}
+          </span>
         )}
-        <p className={`text-sm ${estoqueBaixo ? 'text-stamp font-medium' : 'text-ink/70'}`}>
-          estoque: {produto.quantidade}
-        </p>
+
+        <div className="mt-2 space-y-0.5 font-mono">
+          <p className="text-2xl font-semibold text-ink leading-none tracking-tight">
+            R$ {Number(produto.valor_brl).toFixed(2)}
+          </p>
+          {produto.moeda === 'USD' && (
+            <p className="text-xs text-twine">USD {Number(produto.valor_usd).toFixed(2)}</p>
+          )}
+          <p className={`text-sm ${estoqueBaixo ? 'text-stamp font-medium' : 'text-ink/70'}`}>
+            estoque: {produto.quantidade}
+          </p>
+        </div>
+
+        {produto.observacao && (
+          <p className="text-xs text-stamp/80 mt-1 italic leading-relaxed">{produto.observacao}</p>
+        )}
+
+        <div className="flex items-center gap-2 pt-3 border-t border-dashed border-ink/15 mt-3">
+          <input type="number" min="1" max={produto.quantidade}
+            value={quantidadeVenda}
+            onChange={(e) => setQuantidadeVenda(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
+            aria-label="Quantidade a vender"
+          />
+          <button onClick={handleVender} disabled={carregando || produto.quantidade === 0}
+            className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40" aria-label={`Vender ${quantidadeVenda} unidades`} aria-busy={carregando}>
+            {carregando ? '...' : 'Vender'}
+          </button>
+          <button onClick={() => setEditando(true)}
+            className="text-xs text-twine hover:text-ink transition-colors ml-1" aria-label={`Editar ${produto.nome}`}>
+            editar
+          </button>
+          <button onClick={handleRemover}
+            className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto" aria-label={`Remover ${produto.nome}`}>
+            remover
+          </button>
+        </div>
       </div>
 
-      {produto.observacao && (
-        <p className="text-xs text-stamp/80 mt-1 italic leading-relaxed">{produto.observacao}</p>
-      )}
-
-      <div className="flex items-center gap-2 pt-3 border-t border-dashed border-ink/15 mt-3">
-        <input type="number" min="1" max={produto.quantidade}
-          value={quantidadeVenda}
-          onChange={(e) => setQuantidadeVenda(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
-          aria-label="Quantidade a vender"
-        />
-        <button onClick={handleVender} disabled={carregando || produto.quantidade === 0}
-          className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40" aria-label={`Vender ${quantidadeVenda} unidades`} aria-busy={carregando}>
-          {carregando ? '...' : 'Vender'}
-        </button>
-        <button onClick={() => setEditando(true)}
-          className="text-xs text-twine hover:text-ink transition-colors ml-1" aria-label={`Editar ${produto.nome}`}>
-          editar
-        </button>
-        <button onClick={handleRemover}
-          className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto" aria-label={`Remover ${produto.nome}`}>
-          remover
-        </button>
-      </div>
-
-      {editando && (
+      {editando && createPortal(
         <ModalEditarProduto
           produto={produto}
           aoFechar={() => setEditando(false)}
@@ -267,8 +270,9 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
             addToast('Produto atualizado', 'success');
             onAtualizar();
           }}
-        />
+        />,
+        document.body
       )}
-    </div>
+    </>
   );
 }

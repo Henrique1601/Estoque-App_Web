@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -77,7 +78,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
 
   useEffect(() => {
     salvarFoco();
-    function handleEsc() { aoFechar(); }
+    function handleEsc(e) { if (e.key === 'Escape') aoFechar(); }
     document.addEventListener('keydown', handleEsc);
     return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
   }, [aoFechar]);
@@ -381,7 +382,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {mostrarModal && (
+        {mostrarModal && createPortal(
           <ModalCriarProduto
             lojas={lojasFisicas}
             lojaPadrao={lojaPadraoModal}
@@ -390,7 +391,8 @@ export default function Dashboard() {
               addToast('Produto adicionado', 'success');
               carregarProdutos();
             }}
-          />
+          />,
+          document.body
         )}
       </div>
     </div>
