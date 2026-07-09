@@ -1,12 +1,22 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from '../db.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { erro: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha) {
     return res.status(400).json({ erro: 'Email e senha são obrigatórios' });
@@ -34,9 +44,9 @@ router.post('/login', async (req, res) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   res.json({ token, usuario: payload });
-});
+}));
 
-router.post('/register', async (req, res) => {
+router.post('/register', asyncHandler(async (req, res) => {
   const { nome, email, senha } = req.body;
   if (!nome || !email || !senha) {
     return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
@@ -62,9 +72,9 @@ router.post('/register', async (req, res) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   res.status(201).json({ token, usuario: payload });
-});
+}));
 
-router.post('/esqueci-senha', async (req, res) => {
+router.post('/esqueci-senha', asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ erro: 'Email é obrigatório' });
@@ -81,10 +91,10 @@ router.post('/esqueci-senha', async (req, res) => {
     [rows[0].id, token]
   );
 
-  res.json({ mensagem: 'Token de redefinição gerado', token });
-});
+  res.json({ mensagem: 'Token de redefinição gerado (em produção seria enviado por email)', token });
+}));
 
-router.post('/redefinir-senha', async (req, res) => {
+router.post('/redefinir-senha', asyncHandler(async (req, res) => {
   const { token, senha } = req.body;
   if (!token || !senha) {
     return res.status(400).json({ erro: 'Token e nova senha são obrigatórios' });
@@ -108,6 +118,6 @@ router.post('/redefinir-senha', async (req, res) => {
   await pool.query('DELETE FROM reset_tokens WHERE token = $1', [token]);
 
   res.json({ mensagem: 'Senha redefinida com sucesso' });
-});
+}));
 
 export default router;

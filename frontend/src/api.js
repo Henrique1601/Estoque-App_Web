@@ -4,6 +4,12 @@ function getToken() {
   return localStorage.getItem('token');
 }
 
+let onUnauthorized = null;
+
+export function setOnUnauthorized(cb) {
+  onUnauthorized = cb;
+}
+
 async function request(path, options = {}) {
   const token = getToken();
   const resp = await fetch(`${API_URL}${path}`, {
@@ -14,6 +20,10 @@ async function request(path, options = {}) {
       ...options.headers,
     },
   });
+
+  if (resp.status === 401 && onUnauthorized) {
+    onUnauthorized();
+  }
 
   if (!resp.ok) {
     const erro = await resp.json().catch(() => ({ erro: 'Erro desconhecido' }));
@@ -39,10 +49,13 @@ export const api = {
 
   listarLojas: () => request('/api/lojas'),
 
-  listarProdutos: (lojaId, categoria) => {
+  listarProdutos: ({ lojaId, categoria, busca, sort_by, order } = {}) => {
     const params = new URLSearchParams();
     if (lojaId) params.set('loja_id', lojaId);
     if (categoria) params.set('categoria', categoria);
+    if (busca) params.set('busca', busca);
+    if (sort_by) params.set('sort_by', sort_by);
+    if (order) params.set('order', order);
     const query = params.toString();
     return request(`/api/produtos${query ? `?${query}` : ''}`);
   },

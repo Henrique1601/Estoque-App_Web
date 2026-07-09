@@ -22,9 +22,9 @@ CREATE TABLE IF NOT EXISTS produtos (
   nome VARCHAR(150) NOT NULL,
   loja_id INTEGER NOT NULL REFERENCES lojas(id),
   moeda VARCHAR(3) NOT NULL DEFAULT 'USD' CHECK (moeda IN ('USD', 'BRL')),
-  valor_usd NUMERIC(10,2),
-  valor_brl NUMERIC(10,2),
-  quantidade INTEGER NOT NULL DEFAULT 0,
+  valor_usd NUMERIC(10,2) CHECK (valor_usd IS NULL OR valor_usd > 0),
+  valor_brl NUMERIC(10,2) CHECK (valor_brl IS NULL OR valor_brl > 0),
+  quantidade INTEGER NOT NULL DEFAULT 0 CHECK (quantidade >= 0),
   categoria VARCHAR(50),
   cor VARCHAR(50),
   observacao TEXT,
@@ -53,3 +53,4 @@ INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja L
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_produtos_loja_id ON produtos(loja_id);
 CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON produtos(categoria);
+CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON reset_tokens(token);

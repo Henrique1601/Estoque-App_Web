@@ -229,7 +229,7 @@ export default function Dashboard() {
     setErroCarregar(null);
     try {
       const lojaId = aba === 'central' ? undefined : aba;
-      const data = await api.listarProdutos(lojaId, categoriaSelecionada || undefined);
+      const data = await api.listarProdutos({ lojaId, categoria: categoriaSelecionada || undefined });
       setProdutos(data.produtos || data);
       setCotacao(data.cotacao || null);
     } catch (err) {

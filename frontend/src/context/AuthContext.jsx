@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from 'react';
-import { api } from '../api.js';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { api, setOnUnauthorized } from '../api.js';
 
 const AuthContext = createContext(null);
 
@@ -8,6 +8,16 @@ export function AuthProvider({ children }) {
     const salvo = localStorage.getItem('usuario');
     return salvo ? JSON.parse(salvo) : null;
   });
+
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      setUsuario(null);
+      window.location.href = '/login';
+    });
+    return () => setOnUnauthorized(null);
+  }, []);
 
   async function login(email, senha) {
     const { token, usuario } = await api.login(email, senha);

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import 'dotenv/config';
 
 import { migrate } from './migrate.js';
@@ -13,8 +14,8 @@ import cotacaoRoutes from './routes/cotacao.js';
 
 const app = express();
 
-// Aceita uma ou mais origens (separadas por vírgula) e ignora barra final,
-// maiúsculas/minúsculas e espaços acidentais na variável de ambiente.
+app.use(helmet());
+
 const origensPermitidas = (process.env.FRONTEND_URL || '')
   .split(',')
   .map((o) => o.trim().replace(/\/$/, ''))
@@ -23,7 +24,6 @@ const origensPermitidas = (process.env.FRONTEND_URL || '')
 app.use(
   cors({
     origin(origin, callback) {
-      // Requisições sem origin (ex: curl, health checks) sempre passam
       if (!origin) return callback(null, true);
 
       const origemLimpa = origin.trim().replace(/\/$/, '');
@@ -45,6 +45,22 @@ app.use('/api/auth', authRoutes);
 app.use('/api/produtos', produtosRoutes);
 app.use('/api/lojas', lojasRoutes);
 app.use('/api/cotacao', cotacaoRoutes);
+
+// Error handler global
+app.use((err, req, res, next) => {
+  console.error('Erro não tratado:', err.message, err.stack);
+  res.status(500).json({ erro: 'Erro interno do servidor' });
+});
+
+function validarEnv() {
+  const obrigatorias = ['JWT_SECRET', 'DATABASE_URL', 'FRONTEND_URL'];
+  const faltando = obrigatorias.filter((v) => !process.env[v]);
+  if (faltando.length > 0) {
+    console.error(`Variáveis de ambiente obrigatórias faltando: ${faltando.join(', ')}`);
+    process.exit(1);
+  }
+}
+validarEnv();
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

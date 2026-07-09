@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { autenticar } from '../middleware/auth.js';
 import { obterCotacao } from '../utils/cotacao.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 router.use(autenticar);
@@ -15,7 +16,7 @@ function valorBrlFinal(produto, cotacao) {
   return Number((produto.valor_usd * cotacao).toFixed(2));
 }
 
-router.get('/categorias', async (req, res) => {
+router.get('/categorias', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
   const params = [];
   let query = 'SELECT DISTINCT categoria FROM produtos WHERE categoria IS NOT NULL';
@@ -27,11 +28,11 @@ router.get('/categorias', async (req, res) => {
 
   const { rows } = await pool.query(query, params);
   res.json(rows.map((r) => r.categoria));
-});
+}));
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
-  const { loja_id: filtroLoja, categoria } = req.query;
+  const { loja_id: filtroLoja, categoria, busca, sort_by, order } = req.query;
 
   let query = 'SELECT * FROM produtos';
   const condicoes = [];
@@ -52,8 +53,17 @@ router.get('/', async (req, res) => {
     condicoes.push(`categoria = $${params.length}`);
   }
 
+  if (busca) {
+    params.push(`%${busca}%`);
+    condicoes.push(`nome ILIKE $${params.length}`);
+  }
+
   if (condicoes.length > 0) query += ' WHERE ' + condicoes.join(' AND ');
-  query += ' ORDER BY nome';
+
+  const colunasOrdenaveis = ['nome', 'valor_brl', 'valor_usd', 'quantidade', 'categoria', 'atualizado_em'];
+  const sortCol = colunasOrdenaveis.includes(sort_by) ? sort_by : 'nome';
+  const sortDir = order === 'desc' ? 'DESC' : 'ASC';
+  query += ` ORDER BY ${sortCol} ${sortDir}`;
 
   const { rows } = await pool.query(query, params);
   const cotacao = await obterCotacao();
@@ -64,21 +74,24 @@ router.get('/', async (req, res) => {
   }));
 
   res.json({ produtos, cotacao });
-});
+}));
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
 
   if (!nome || !loja_id || quantidade == null) {
     return res.status(400).json({ erro: 'Campos obrigatórios: nome, loja_id, quantidade' });
   }
+  if (quantidade < 0) {
+    return res.status(400).json({ erro: 'quantidade não pode ser negativa' });
+  }
 
   const moedaFinal = moeda === 'BRL' ? 'BRL' : 'USD';
-  if (moedaFinal === 'USD' && valor_usd == null) {
-    return res.status(400).json({ erro: 'valor_usd é obrigatório quando moeda é USD' });
+  if (moedaFinal === 'USD' && (valor_usd == null || valor_usd <= 0)) {
+    return res.status(400).json({ erro: 'valor_usd deve ser maior que zero' });
   }
-  if (moedaFinal === 'BRL' && valor_brl == null) {
-    return res.status(400).json({ erro: 'valor_brl é obrigatório quando moeda é BRL' });
+  if (moedaFinal === 'BRL' && (valor_brl == null || valor_brl <= 0)) {
+    return res.status(400).json({ erro: 'valor_brl deve ser maior que zero' });
   }
 
   if (!lojaPermitida(req, loja_id)) {
@@ -92,11 +105,15 @@ router.post('/', async (req, res) => {
   );
 
   res.status(201).json(rows[0]);
-});
+}));
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
+
+  if (quantidade != null && quantidade < 0) {
+    return res.status(400).json({ erro: 'quantidade não pode ser negativa' });
+  }
 
   const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
   if (atual.rows.length === 0) return res.status(404).json({ erro: 'Produto não encontrado' });
@@ -106,7 +123,7 @@ router.put('/:id', async (req, res) => {
 
   const { rows } = await pool.query(
     `UPDATE produtos SET
-       nome = COALESCE($1, nome),
+       nome = COALESCE(NULLIF($1, ''), nome),
        valor_usd = COALESCE($2, valor_usd),
        valor_brl = COALESCE($3, valor_brl),
        quantidade = COALESCE($4, quantidade),
@@ -119,14 +136,14 @@ router.put('/:id', async (req, res) => {
   );
 
   res.json(rows[0]);
-});
+}));
 
-router.post('/:id/venda', async (req, res) => {
+router.post('/:id/venda', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { quantidade_vendida } = req.body;
 
-  if (!quantidade_vendida || quantidade_vendida <= 0) {
-    return res.status(400).json({ erro: 'quantidade_vendida deve ser maior que zero' });
+  if (!quantidade_vendida || quantidade_vendida <= 0 || !Number.isInteger(quantidade_vendida)) {
+    return res.status(400).json({ erro: 'quantidade_vendida deve ser um inteiro maior que zero' });
   }
 
   const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
@@ -145,9 +162,9 @@ router.post('/:id/venda', async (req, res) => {
   );
 
   res.json(rows[0]);
-});
+}));
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const atual = await pool.query('SELECT * FROM produtos WHERE id = $1', [id]);
@@ -158,6 +175,6 @@ router.delete('/:id', async (req, res) => {
 
   await pool.query('DELETE FROM produtos WHERE id = $1', [id]);
   res.status(204).send();
-});
+}));
 
 export default router;
