@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
+import { useFocusTrap, salvarFoco, restaurarFoco } from '../hooks/useFocusTrap.js';
 import Navbar from '../components/Navbar.jsx';
 import ProdutoCard from '../components/ProdutoCard.jsx';
 
@@ -33,12 +34,13 @@ function SelectorCores({ value, onChange }) {
         type="text" placeholder="buscar ou digitar cor..." value={pesquisa}
         onChange={(e) => setPesquisa(e.target.value)}
         className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper mb-2"
+        aria-label="Buscar cor"
       />
       {pesquisa && filtradas.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto mb-2 p-1.5 border border-ink/10 rounded-md bg-kraft-dark/10">
+        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto mb-2 p-1.5 border border-ink/10 rounded-md bg-kraft-dark/10" role="listbox" aria-label="Cores sugeridas">
           {filtradas.slice(0, 20).map((cor) => (
             <button
-              key={cor} type="button"
+              key={cor} type="button" role="option" aria-selected={value === cor}
               onClick={() => { onChange(cor); setPesquisa(''); }}
               className={`text-xs px-2 py-1 rounded border transition-all ${
                 value === cor
@@ -55,9 +57,10 @@ function SelectorCores({ value, onChange }) {
         type="text" placeholder="cor personalizada..." value={CORES_CELULAR.includes(value) ? '' : value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper"
+        aria-label="Cor personalizada"
       />
       {value && (
-        <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono">
+        <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono" aria-live="polite">
           <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
             style={{ backgroundColor: corToHex(value) }}
           />
@@ -69,6 +72,16 @@ function SelectorCores({ value, onChange }) {
 }
 
 function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
+  const ref = useRef(null);
+  useFocusTrap(true, ref);
+
+  useEffect(() => {
+    salvarFoco();
+    function handleEsc() { aoFechar(); }
+    document.addEventListener('keydown', handleEsc);
+    return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
+  }, [aoFechar]);
+
   const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', cor: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
@@ -98,9 +111,9 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Novo produto"
       onClick={(e) => e.target === e.currentTarget && aoFechar()}>
-      <form onSubmit={handleSubmit}
+      <form onSubmit={handleSubmit} ref={ref}
         className="tag-card p-6 w-full max-w-md space-y-3 card-enter"
         style={{ animationDelay: '0s' }}
       >
@@ -169,11 +182,11 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
 
         <SelectorCores value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />
 
-        {erro && <p className="text-sm text-stamp font-mono">{erro}</p>}
+        {erro && <p className="text-sm text-stamp font-mono" role="alert">{erro}</p>}
 
         <div className="flex gap-2 pt-1">
           <button type="submit" disabled={criando}
-            className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50">
+            className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50" aria-busy={criando}>
             {criando ? '...' : 'adicionar'}
           </button>
           <button type="button" onClick={aoFechar}
@@ -198,6 +211,7 @@ export default function Dashboard() {
   const [cotacao, setCotacao] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [erroCarregar, setErroCarregar] = useState(null);
 
   const lojasFisicas = lojas.filter((l) => l.nome !== 'Central de Estoque');
   const abas = lojasFisicas.length > 0
@@ -209,24 +223,30 @@ export default function Dashboard() {
     api.listarCategorias().then(setCategorias);
   }, []);
 
-  async function carregarProdutos() {
+  const carregarProdutos = useCallback(async () => {
     setCarregando(true);
+    setErroCarregar(null);
     try {
       const lojaId = aba === 'central' ? undefined : aba;
       const data = await api.listarProdutos(lojaId, categoriaSelecionada || undefined);
       setProdutos(data.produtos || data);
       setCotacao(data.cotacao || null);
     } catch (err) {
+      setErroCarregar(err.message);
       addToast('Erro ao carregar produtos', 'error');
     } finally {
       setCarregando(false);
     }
-  }
+  }, [aba, categoriaSelecionada, addToast]);
 
   useEffect(() => {
     if (lojas.length > 0) carregarProdutos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aba, categoriaSelecionada, lojas.length]);
+  }, [carregarProdutos, lojas.length]);
+
+  const lojaMap = useCallback((id) => {
+    const l = lojasFisicas.find((l) => l.id === id);
+    return l ? l.nome : null;
+  }, [lojasFisicas]);
 
   const produtosFiltrados = produtos.filter((p) =>
     p.nome.toLowerCase().includes(busca.toLowerCase())
@@ -247,10 +267,10 @@ export default function Dashboard() {
 
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
         {usuario.role === 'admin' && abas.length > 0 && (
-          <div className="flex gap-1 overflow-x-auto pb-1">
+          <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Lojas">
             {abas.map((ab) => (
               <button
-                key={ab.id}
+                key={ab.id} role="tab" aria-selected={aba === ab.id}
                 onClick={() => setAba(ab.id)}
                 className={`folder-tab whitespace-nowrap px-4 py-2 text-sm font-medium font-mono transition-all ${
                   aba === ab.id ? 'bg-paper text-ink' : 'bg-kraft-dark/30 text-ink/60 hover:text-ink/80'
@@ -303,23 +323,31 @@ export default function Dashboard() {
               type="text" placeholder="buscar produto..." value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono w-full sm:w-48"
+              aria-label="Buscar produto"
             />
             {categorias.length > 0 && (
               <select value={categoriaSelecionada}
                 onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono">
+                className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono" aria-label="Filtrar por categoria">
                 <option value="">todas</option>
                 {categorias.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             )}
             <button
               onClick={() => setMostrarModal(true)}
-              className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press"
+              className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press" aria-label="Adicionar novo produto"
             >
               + novo
             </button>
           </div>
         </div>
+
+        {erroCarregar && (
+          <div className="bg-stamp/10 border border-stamp/30 rounded-md p-4 text-sm font-mono text-stamp text-center" role="alert">
+            Erro ao carregar: {erroCarregar}
+            <button onClick={carregarProdutos} className="ml-3 underline hover:no-underline">tentar novamente</button>
+          </div>
+        )}
 
         {busca && produtosFiltrados.length === 0 && !carregando && (
           <p className="text-sm text-ink/50 font-mono text-center py-8">
@@ -327,7 +355,7 @@ export default function Dashboard() {
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2" role="feed" aria-label="Lista de produtos" aria-busy={carregando}>
           {carregando ? (
             <>
               <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
@@ -336,11 +364,15 @@ export default function Dashboard() {
             produtosFiltrados.map((produto, i) => (
               <div key={produto.id} className="card-enter"
                 style={{ animationDelay: `${(i % 8) * 0.06}s` }}>
-                <ProdutoCard produto={produto} onAtualizar={carregarProdutos} />
+                <ProdutoCard
+                  produto={produto}
+                  onAtualizar={carregarProdutos}
+                  lojaNome={aba === 'central' ? lojaMap(produto.loja_id) : undefined}
+                />
               </div>
             ))
           ) : (
-            !busca && (
+            !busca && !erroCarregar && (
               <div className="col-span-2 text-center py-12 font-mono">
                 <p className="text-ink/40 text-sm">nenhum produto cadastrado</p>
                 <p className="text-ink/30 text-xs mt-2">clique em &ldquo;+ novo&rdquo; para adicionar</p>

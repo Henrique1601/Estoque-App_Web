@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { api } from '../api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
+import { useFocusTrap, salvarFoco, restaurarFoco } from '../hooks/useFocusTrap.js';
 
 function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
+  const ref = useRef(null);
+  const salvarFocoExec = useRef(false);
+  useFocusTrap(true, ref);
+
+  useEffect(() => {
+    if (!salvarFocoExec.current) { salvarFoco(); salvarFocoExec.current = true; }
+    function handleEsc(e) { if (e.key === 'Escape') aoFechar(); }
+    document.addEventListener('keydown', handleEsc);
+    return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
+  }, [aoFechar]);
+
   const [form, setForm] = useState({
-    nome: produto.nome,
-    moeda: produto.moeda,
-    valor_usd: produto.valor_usd ?? '',
-    valor_brl: produto.valor_brl ?? '',
-    quantidade: produto.quantidade,
-    categoria: produto.categoria ?? '',
-    cor: produto.cor ?? '',
-    observacao: produto.observacao ?? '',
+    nome: produto.nome, moeda: produto.moeda,
+    valor_usd: produto.valor_usd ?? '', valor_brl: produto.valor_brl ?? '',
+    quantidade: produto.quantidade, categoria: produto.categoria ?? '',
+    cor: produto.cor ?? '', observacao: produto.observacao ?? '',
   });
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -41,9 +49,9 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Editar produto"
       onClick={(e) => e.target === e.currentTarget && aoFechar()}>
-      <form onSubmit={handleSubmit}
+      <form onSubmit={handleSubmit} ref={ref}
         className="tag-card p-6 w-full max-w-md space-y-3 card-enter"
         style={{ animationDelay: '0s' }}
       >
@@ -99,9 +107,9 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
 
         <div>
           <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">cor</label>
-          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2" role="listbox" aria-label="Cores sugeridas">
             {CORES_CELULAR.slice(0, 30).map((cor) => (
-              <button key={cor} type="button"
+              <button key={cor} type="button" role="option" aria-selected={form.cor === cor}
                 onClick={() => setForm({ ...form, cor })}
                 className={`text-xs px-2 py-1 rounded border transition-all ${
                   form.cor === cor
@@ -115,12 +123,11 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
           <input value={CORES_CELULAR.includes(form.cor) ? '' : form.cor}
             placeholder="ou digite cor personalizada..."
             onChange={(e) => setForm({ ...form, cor: e.target.value })}
-            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" aria-label="Cor personalizada" />
           {form.cor && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono">
+            <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono" aria-live="polite">
               <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
-                style={{ backgroundColor: corToHex(form.cor) }}
-              />
+                style={{ backgroundColor: corToHex(form.cor) }} />
               {form.cor}
             </span>
           )}
@@ -133,11 +140,11 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
         </div>
 
-        {erro && <p className="text-sm text-stamp font-mono">{erro}</p>}
+        {erro && <p className="text-sm text-stamp font-mono" role="alert">{erro}</p>}
 
         <div className="flex gap-2 pt-1">
           <button type="submit" disabled={salvando}
-            className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50">
+            className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50" aria-busy={salvando}>
             {salvando ? '...' : 'salvar'}
           </button>
           <button type="button" onClick={aoFechar}
@@ -150,7 +157,7 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
   );
 }
 
-export default function ProdutoCard({ produto, onAtualizar }) {
+export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
   const [quantidadeVenda, setQuantidadeVenda] = useState(1);
   const [carregando, setCarregando] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -171,6 +178,10 @@ export default function ProdutoCard({ produto, onAtualizar }) {
     }
   }
 
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') handleVender();
+  }
+
   async function handleRemover() {
     if (!confirm(`Remover "${produto.nome}" do estoque?`)) return;
     try {
@@ -185,18 +196,23 @@ export default function ProdutoCard({ produto, onAtualizar }) {
   return (
     <div className="tag-card p-4 pl-6 card-enter" style={{ animationDelay: '0s' }}>
       <span className="tag-hole" aria-hidden="true" />
-      {estoqueBaixo && <span className="stamp">REPOR ESTOQUE</span>}
+      {estoqueBaixo && <span className="stamp" aria-live="polite">REPOR ESTOQUE</span>}
 
       <div className="flex items-start justify-between gap-2 pr-16">
         <h3 className="font-medium text-ink leading-tight">{produto.nome}</h3>
-        {produto.cor && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-ink/50 shrink-0 mt-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-full border border-ink/20"
-              style={{ backgroundColor: corToHex(produto.cor) }}
-            />
-            {produto.cor}
-          </span>
-        )}
+        <span className="flex items-center gap-1.5 shrink-0 mt-0.5">
+          {lojaNome && (
+            <span className="text-[10px] font-mono text-ink/40 bg-ink/5 rounded px-1.5 py-0.5">{lojaNome}</span>
+          )}
+          {produto.cor && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono text-ink/50" aria-label={`Cor: ${produto.cor}`}>
+              <span className="inline-block w-2.5 h-2.5 rounded-full border border-ink/20"
+                style={{ backgroundColor: corToHex(produto.cor) }}
+              />
+              {produto.cor}
+            </span>
+          )}
+        </span>
       </div>
 
       {produto.categoria && (
@@ -225,18 +241,20 @@ export default function ProdutoCard({ produto, onAtualizar }) {
         <input type="number" min="1" max={produto.quantidade}
           value={quantidadeVenda}
           onChange={(e) => setQuantidadeVenda(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
+          aria-label="Quantidade a vender"
         />
         <button onClick={handleVender} disabled={carregando || produto.quantidade === 0}
-          className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40">
+          className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40" aria-label={`Vender ${quantidadeVenda} unidades`} aria-busy={carregando}>
           {carregando ? '...' : 'Vender'}
         </button>
         <button onClick={() => setEditando(true)}
-          className="text-xs text-twine hover:text-ink transition-colors ml-1">
+          className="text-xs text-twine hover:text-ink transition-colors ml-1" aria-label={`Editar ${produto.nome}`}>
           editar
         </button>
         <button onClick={handleRemover}
-          className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto">
+          className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto" aria-label={`Remover ${produto.nome}`}>
           remover
         </button>
       </div>

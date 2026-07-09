@@ -49,3 +49,7 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
 -- Lojas iniciais
 INSERT INTO lojas (nome) VALUES ('Central de Estoque'), ('Loja Games'), ('Loja Litoral')
   ON CONFLICT (nome) DO NOTHING;
+
+-- Índices para performance
+CREATE INDEX IF NOT EXISTS idx_produtos_loja_id ON produtos(loja_id);
+CREATE INDEX IF NOT EXISTS idx_produtos_categoria ON produtos(categoria);
