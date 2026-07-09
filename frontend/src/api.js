@@ -49,13 +49,15 @@ export const api = {
 
   listarLojas: () => request('/api/lojas'),
 
-  listarProdutos: ({ lojaId, categoria, busca, sort_by, order } = {}) => {
+  listarProdutos: ({ lojaId, categoria, busca, sort_by, order, page, limit } = {}) => {
     const params = new URLSearchParams();
     if (lojaId) params.set('loja_id', lojaId);
     if (categoria) params.set('categoria', categoria);
     if (busca) params.set('busca', busca);
     if (sort_by) params.set('sort_by', sort_by);
     if (order) params.set('order', order);
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
     const query = params.toString();
     return request(`/api/produtos${query ? `?${query}` : ''}`);
   },
@@ -75,6 +77,8 @@ export const api = {
     }),
 
   removerProduto: (id) => request(`/api/produtos/${id}`, { method: 'DELETE' }),
+
+  logout: () => request('/api/auth/logout', { method: 'POST' }),
 
   cotacao: () => request('/api/cotacao'),
 };

@@ -62,7 +62,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const countResult = await pool.query(`SELECT COUNT(*) FROM produtos${where}`, params);
   const total = parseInt(countResult.rows[0].count, 10);
 
-  const colunasOrdenaveis = ['nome', 'valor_brl', 'valor_usd', 'quantidade', 'categoria', 'atualizado_em'];
+  const colunasOrdenaveis = ['nome', 'valor_brl', 'valor_usd', 'quantidade', 'categoria', 'criado_em', 'atualizado_em'];
   const sortCol = colunasOrdenaveis.includes(sort_by) ? sort_by : 'nome';
   const sortDir = order === 'desc' ? 'DESC' : 'ASC';
 

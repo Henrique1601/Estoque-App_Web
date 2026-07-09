@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { autenticar } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -118,6 +119,12 @@ router.post('/redefinir-senha', asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM reset_tokens WHERE token = $1', [token]);
 
   res.json({ mensagem: 'Senha redefinida com sucesso' });
+}));
+
+// Logout (registro de auditoria)
+router.post('/logout', autenticar, asyncHandler(async (req, res) => {
+  console.log(`Logout: usuário ${req.usuario.id} (${req.usuario.email})`);
+  res.json({ mensagem: 'Logout realizado' });
 }));
 
 export default router;

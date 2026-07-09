@@ -207,8 +207,11 @@ export default function Dashboard() {
   const [aba, setAba] = useState('central');
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [carregandoCategorias, setCarregandoCategorias] = useState(true);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState('');
   const [busca, setBusca] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [cotacao, setCotacao] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -216,6 +219,7 @@ export default function Dashboard() {
   const [pagina, setPagina] = useState(1);
   const [total, setTotal] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
+  const buscaRef = useRef(null);
   const limite = 20;
 
   const lojasFisicas = lojas.filter((l) => l.nome !== 'Central de Estoque');
@@ -225,13 +229,33 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.listarLojas().then(setLojas);
-    api.listarCategorias().then(setCategorias);
+    api.listarCategorias()
+      .then(setCategorias)
+      .catch(() => {})
+      .finally(() => setCarregandoCategorias(false));
+  }, []);
+
+  // Atalhos de teclado
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        setMostrarModal((v) => !v);
+      }
+      if ((e.ctrlKey && e.key === 'f') || (e.ctrlKey && e.key === 'k')) {
+        e.preventDefault();
+        buscaRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
   // Reseta pra página 1 sempre que os filtros mudam
   useEffect(() => {
     if (lojas.length > 0) setPagina(1);
-  }, [aba, categoriaSelecionada, busca, lojas.length]);
+  }, [aba, categoriaSelecionada, busca, sortBy, sortOrder, lojas.length]);
 
   // Carrega produtos conforme página e filtros atuais
   useEffect(() => {
@@ -246,6 +270,8 @@ export default function Dashboard() {
           lojaId,
           categoria: categoriaSelecionada || undefined,
           busca: busca || undefined,
+          sort_by: sortBy || undefined,
+          order: sortOrder,
           page: pagina,
           limit: limite,
         });
@@ -262,7 +288,7 @@ export default function Dashboard() {
       }
     })();
     return () => { cancelado = true; };
-  }, [pagina, aba, categoriaSelecionada, busca, lojas.length, reloadKey, addToast]);
+  }, [pagina, aba, categoriaSelecionada, busca, sortBy, sortOrder, lojas.length, reloadKey, addToast]);
 
   const lojaMap = useCallback((id) => {
     const l = lojasFisicas.find((l) => l.id === id);
@@ -279,6 +305,36 @@ export default function Dashboard() {
 
   const lojaPadraoModal = aba === 'central' ? null : Number(aba);
 
+  function alternarOrdem(col) {
+    if (sortBy === col) {
+      setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(col);
+      setSortOrder('asc');
+    }
+  }
+
+  const opcoesOrdenacao = [
+    { value: '', label: 'padrão' },
+    { value: 'nome', label: 'nome A-Z' },
+    { value: 'valor_brl', label: 'menor preço' },
+    { value: 'quantidade', label: 'menor qtd' },
+    { value: 'criado_em', label: 'mais antigos' },
+  ];
+
+  function labelOrdenacao() {
+    const op = opcoesOrdenacao.find((o) => o.value === sortBy);
+    if (!op) return 'padrão';
+    const dir = sortOrder === 'asc' ? '↑' : '↓';
+    const labels = {
+      nome: 'nome',
+      valor_brl: 'preço',
+      quantidade: 'qtd',
+      criado_em: 'data',
+    };
+    return `${labels[sortBy] || sortBy} ${dir}`;
+  }
+
   return (
     <div className="min-h-[100dvh] bg-kraft">
       <Navbar />
@@ -290,10 +346,13 @@ export default function Dashboard() {
               <button
                 key={ab.id} role="tab" aria-selected={aba === ab.id}
                 onClick={() => setAba(ab.id)}
-                className={`folder-tab whitespace-nowrap px-4 py-2 text-sm font-medium font-mono transition-all ${
+                className={`folder-tab whitespace-nowrap px-4 py-2 text-sm font-medium font-mono transition-all flex items-center gap-2 ${
                   aba === ab.id ? 'bg-paper text-ink' : 'bg-kraft-dark/30 text-ink/60 hover:text-ink/80'
                 }`}
               >
+                {aba === ab.id && carregando && (
+                  <span className="inline-block w-2 h-2 rounded-full bg-stamp animate-pulse" aria-hidden="true" />
+                )}
                 {ab.nome}
               </button>
             ))}
@@ -338,12 +397,27 @@ export default function Dashboard() {
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input
-              type="text" placeholder="buscar produto..." value={busca}
+              ref={buscaRef}
+              type="text" placeholder="buscar produto... (Ctrl+F)" value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono w-full sm:w-48"
+              className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono w-full sm:w-44"
               aria-label="Buscar produto"
             />
-            {categorias.length > 0 && (
+            <button
+              onClick={() => alternarOrdem(sortBy || 'nome')}
+              className="border border-ink/20 rounded-md px-3 py-2 text-sm font-mono bg-paper input-tag hover:border-ink/40 transition-colors flex items-center gap-1.5"
+              aria-label={`Ordenar por ${labelOrdenacao()}`}
+              title={`Ordenar: ${labelOrdenacao()}`}
+            >
+              <span aria-hidden="true">⇅</span>
+              <span className="hidden sm:inline">{labelOrdenacao()}</span>
+            </button>
+            {carregandoCategorias ? (
+              <select disabled
+                className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono text-ink/40">
+                <option>carregando...</option>
+              </select>
+            ) : categorias.length > 0 && (
               <select value={categoriaSelecionada}
                 onChange={(e) => setCategoriaSelecionada(e.target.value)}
                 className="border border-ink/20 rounded-md px-3 py-2 text-sm bg-paper input-tag font-mono" aria-label="Filtrar por categoria">
@@ -353,7 +427,7 @@ export default function Dashboard() {
             )}
             <button
               onClick={() => setMostrarModal(true)}
-              className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press" aria-label="Adicionar novo produto"
+              className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press" aria-label="Adicionar novo produto (Ctrl+N)"
             >
               + novo
             </button>

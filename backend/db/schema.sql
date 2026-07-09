@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   categoria VARCHAR(50),
   cor VARCHAR(50),
   observacao TEXT,
+  criado_em TIMESTAMP DEFAULT NOW(),
   atualizado_em TIMESTAMP DEFAULT NOW()
 );
 
