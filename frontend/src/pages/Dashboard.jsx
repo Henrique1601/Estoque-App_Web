@@ -213,6 +213,10 @@ export default function Dashboard() {
   const [carregando, setCarregando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [erroCarregar, setErroCarregar] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const limite = 20;
 
   const lojasFisicas = lojas.filter((l) => l.nome !== 'Central de Estoque');
   const abas = lojasFisicas.length > 0
@@ -224,41 +228,54 @@ export default function Dashboard() {
     api.listarCategorias().then(setCategorias);
   }, []);
 
-  const carregarProdutos = useCallback(async () => {
-    setCarregando(true);
-    setErroCarregar(null);
-    try {
-      const lojaId = aba === 'central' ? undefined : aba;
-      const data = await api.listarProdutos({ lojaId, categoria: categoriaSelecionada || undefined });
-      setProdutos(data.produtos || data);
-      setCotacao(data.cotacao || null);
-    } catch (err) {
-      setErroCarregar(err.message);
-      addToast('Erro ao carregar produtos', 'error');
-    } finally {
-      setCarregando(false);
-    }
-  }, [aba, categoriaSelecionada, addToast]);
-
+  // Reseta pra página 1 sempre que os filtros mudam
   useEffect(() => {
-    if (lojas.length > 0) carregarProdutos();
-  }, [carregarProdutos, lojas.length]);
+    if (lojas.length > 0) setPagina(1);
+  }, [aba, categoriaSelecionada, busca, lojas.length]);
+
+  // Carrega produtos conforme página e filtros atuais
+  useEffect(() => {
+    if (lojas.length === 0) return;
+    let cancelado = false;
+    (async () => {
+      setCarregando(true);
+      setErroCarregar(null);
+      try {
+        const lojaId = aba === 'central' ? undefined : aba;
+        const data = await api.listarProdutos({
+          lojaId,
+          categoria: categoriaSelecionada || undefined,
+          busca: busca || undefined,
+          page: pagina,
+          limit: limite,
+        });
+        if (cancelado) return;
+        setProdutos(data.produtos || data);
+        setTotal(data.total || data.length || 0);
+        setCotacao(data.cotacao || null);
+      } catch (err) {
+        if (cancelado) return;
+        setErroCarregar(err.message);
+        addToast('Erro ao carregar produtos', 'error');
+      } finally {
+        if (!cancelado) setCarregando(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [pagina, aba, categoriaSelecionada, busca, lojas.length, reloadKey, addToast]);
 
   const lojaMap = useCallback((id) => {
     const l = lojasFisicas.find((l) => l.id === id);
     return l ? l.nome : null;
   }, [lojasFisicas]);
 
-  const produtosFiltrados = produtos.filter((p) =>
-    p.nome.toLowerCase().includes(busca.toLowerCase())
-  );
-
-  const valorTotalEstoque = produtosFiltrados.reduce(
+  const valorTotalEstoque = produtos.reduce(
     (soma, p) => soma + Number(p.valor_brl) * Number(p.quantidade), 0
   );
-  const totalProdutos = produtosFiltrados.length;
-  const totalItens = produtosFiltrados.reduce((s, p) => s + Number(p.quantidade), 0);
-  const estoqueBaixoCount = produtosFiltrados.filter((p) => p.quantidade <= 5).length;
+  const totalProdutos = produtos.length;
+  const totalItens = produtos.reduce((s, p) => s + Number(p.quantidade), 0);
+  const estoqueBaixoCount = produtos.filter((p) => p.quantidade <= 5).length;
+  const totalPaginas = Math.max(1, Math.ceil(total / limite));
 
   const lojaPadraoModal = aba === 'central' ? null : Number(aba);
 
@@ -346,11 +363,11 @@ export default function Dashboard() {
         {erroCarregar && (
           <div className="bg-stamp/10 border border-stamp/30 rounded-md p-4 text-sm font-mono text-stamp text-center" role="alert">
             Erro ao carregar: {erroCarregar}
-            <button onClick={carregarProdutos} className="ml-3 underline hover:no-underline">tentar novamente</button>
+            <button onClick={() => setReloadKey((k) => k + 1)} className="ml-3 underline hover:no-underline">tentar novamente</button>
           </div>
         )}
 
-        {busca && produtosFiltrados.length === 0 && !carregando && (
+        {busca && produtos.length === 0 && !carregando && (
           <p className="text-sm text-ink/50 font-mono text-center py-8">
             nenhum produto encontrado para &ldquo;{busca}&rdquo;
           </p>
@@ -361,13 +378,13 @@ export default function Dashboard() {
             <>
               <SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard />
             </>
-          ) : produtosFiltrados.length > 0 ? (
-            produtosFiltrados.map((produto, i) => (
+          ) : produtos.length > 0 ? (
+            produtos.map((produto, i) => (
               <div key={produto.id} className="card-enter"
                 style={{ animationDelay: `${(i % 8) * 0.06}s` }}>
                 <ProdutoCard
                   produto={produto}
-                  onAtualizar={carregarProdutos}
+                  onAtualizar={() => setReloadKey((k) => k + 1)}
                   lojaNome={aba === 'central' ? lojaMap(produto.loja_id) : undefined}
                 />
               </div>
@@ -382,6 +399,34 @@ export default function Dashboard() {
           )}
         </div>
 
+        {totalPaginas > 1 && !carregando && (
+          <div className="flex items-center justify-center gap-2 pt-2 pb-4" role="navigation" aria-label="Paginação">
+            <button disabled={pagina <= 1}
+              onClick={() => setPagina(1)}
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              primeira
+            </button>
+            <button disabled={pagina <= 1}
+              onClick={() => setPagina(pagina - 1)}
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              &lt;
+            </button>
+            <span className="text-xs font-mono text-ink/60 px-3">
+              {pagina} / {totalPaginas}
+            </span>
+            <button disabled={pagina >= totalPaginas}
+              onClick={() => setPagina(pagina + 1)}
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              &gt;
+            </button>
+            <button disabled={pagina >= totalPaginas}
+              onClick={() => setPagina(totalPaginas)}
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              última
+            </button>
+          </div>
+        )}
+
         {mostrarModal && createPortal(
           <ModalCriarProduto
             lojas={lojasFisicas}
@@ -389,7 +434,8 @@ export default function Dashboard() {
             aoFechar={() => setMostrarModal(false)}
             aoCriar={() => {
               addToast('Produto adicionado', 'success');
-              carregarProdutos();
+              setPagina(1);
+              setReloadKey((k) => k + 1);
             }}
           />,
           document.body

@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { CORES_CELULAR, corToHex } from '../constants/coresCelular.js';
 import { useFocusTrap, salvarFoco, restaurarFoco } from '../hooks/useFocusTrap.js';
+import ConfirmModal from './ConfirmModal.jsx';
 
 function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
   const ref = useRef(null);
@@ -162,11 +163,14 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
   const [quantidadeVenda, setQuantidadeVenda] = useState(1);
   const [carregando, setCarregando] = useState(false);
   const [editando, setEditando] = useState(false);
+  const [confirmarVenda, setConfirmarVenda] = useState(false);
+  const [confirmarRemocao, setConfirmarRemocao] = useState(false);
   const addToast = useToast();
 
   const estoqueBaixo = produto.quantidade <= 5;
 
   async function handleVender() {
+    setConfirmarVenda(false);
     setCarregando(true);
     try {
       await api.venderProduto(produto.id, Number(quantidadeVenda));
@@ -180,17 +184,20 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter') handleVender();
+    if (e.key === 'Enter') setConfirmarVenda(true);
   }
 
   async function handleRemover() {
-    if (!confirm(`Remover "${produto.nome}" do estoque?`)) return;
+    setConfirmarRemocao(false);
+    setCarregando(true);
     try {
       await api.removerProduto(produto.id);
       addToast(`"${produto.nome}" removido`, 'success');
       onAtualizar();
     } catch (err) {
       addToast(err.message, 'error');
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -242,12 +249,12 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
         <div className="flex items-center gap-2 pt-3 border-t border-dashed border-ink/15 mt-3">
           <input type="number" min="1" max={produto.quantidade}
             value={quantidadeVenda}
-            onChange={(e) => setQuantidadeVenda(e.target.value)}
+            onChange={(e) => setQuantidadeVenda(Number(e.target.value))}
             onKeyDown={handleKeyDown}
             className="w-16 border border-ink/20 rounded-md px-2 py-1.5 text-sm font-mono input-tag bg-paper"
             aria-label="Quantidade a vender"
           />
-          <button onClick={handleVender} disabled={carregando || produto.quantidade === 0}
+          <button onClick={() => setConfirmarVenda(true)} disabled={carregando || produto.quantidade === 0}
             className="text-sm bg-ink text-paper px-3 py-1.5 rounded-md btn-press disabled:opacity-40" aria-label={`Vender ${quantidadeVenda} unidades`} aria-busy={carregando}>
             {carregando ? '...' : 'Vender'}
           </button>
@@ -255,12 +262,32 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
             className="text-xs text-twine hover:text-ink transition-colors ml-1" aria-label={`Editar ${produto.nome}`}>
             editar
           </button>
-          <button onClick={handleRemover}
+          <button onClick={() => setConfirmarRemocao(true)}
             className="text-xs text-stamp/70 hover:text-stamp transition-colors ml-auto" aria-label={`Remover ${produto.nome}`}>
             remover
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        aberto={confirmarVenda}
+        titulo="Confirmar venda"
+        mensagem={`Deseja vender ${quantidadeVenda} unidade${quantidadeVenda > 1 ? 's' : ''}?`}
+        acao={produto.nome}
+        acaoLabel="vender"
+        aoFechar={() => setConfirmarVenda(false)}
+        aoConfirmar={handleVender}
+      />
+
+      <ConfirmModal
+        aberto={confirmarRemocao}
+        titulo="Remover produto"
+        mensagem={`Remover do estoque permanentemente?`}
+        acao={produto.nome}
+        acaoLabel="remover"
+        aoFechar={() => setConfirmarRemocao(false)}
+        aoConfirmar={handleRemover}
+      />
 
       {editando && createPortal(
         <ModalEditarProduto

@@ -32,9 +32,8 @@ router.get('/categorias', asyncHandler(async (req, res) => {
 
 router.get('/', asyncHandler(async (req, res) => {
   const { role, loja_id } = req.usuario;
-  const { loja_id: filtroLoja, categoria, busca, sort_by, order } = req.query;
+  const { loja_id: filtroLoja, categoria, busca, sort_by, order, page, limit } = req.query;
 
-  let query = 'SELECT * FROM produtos';
   const condicoes = [];
   const params = [];
 
@@ -58,14 +57,24 @@ router.get('/', asyncHandler(async (req, res) => {
     condicoes.push(`nome ILIKE $${params.length}`);
   }
 
-  if (condicoes.length > 0) query += ' WHERE ' + condicoes.join(' AND ');
+  const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
+
+  const countResult = await pool.query(`SELECT COUNT(*) FROM produtos${where}`, params);
+  const total = parseInt(countResult.rows[0].count, 10);
 
   const colunasOrdenaveis = ['nome', 'valor_brl', 'valor_usd', 'quantidade', 'categoria', 'atualizado_em'];
   const sortCol = colunasOrdenaveis.includes(sort_by) ? sort_by : 'nome';
   const sortDir = order === 'desc' ? 'DESC' : 'ASC';
-  query += ` ORDER BY ${sortCol} ${sortDir}`;
 
-  const { rows } = await pool.query(query, params);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+  const offset = (pageNum - 1) * limitNum;
+
+  const { rows } = await pool.query(
+    `SELECT * FROM produtos${where} ORDER BY ${sortCol} ${sortDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limitNum, offset]
+  );
+
   const cotacao = await obterCotacao();
 
   const produtos = rows.map((p) => ({
@@ -73,7 +82,7 @@ router.get('/', asyncHandler(async (req, res) => {
     valor_brl: valorBrlFinal(p, cotacao),
   }));
 
-  res.json({ produtos, cotacao });
+  res.json({ produtos, cotacao, total, page: pageNum, limit: limitNum });
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
