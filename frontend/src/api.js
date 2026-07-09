@@ -101,4 +101,10 @@ export const api = {
   compararProdutos: () => request('/api/produtos/comparar'),
 
   relatorios: () => request('/api/produtos/relatorios'),
+
+  atualizarPerfil: (nome) =>
+    request('/api/auth/perfil', { method: 'PUT', body: JSON.stringify({ nome }) }),
+
+  trocarSenha: (senha_atual, nova_senha) =>
+    request('/api/auth/trocar-senha', { method: 'PUT', body: JSON.stringify({ senha_atual, nova_senha }) }),
 };

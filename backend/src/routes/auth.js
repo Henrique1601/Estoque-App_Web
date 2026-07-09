@@ -127,6 +127,34 @@ router.post('/redefinir-senha', asyncHandler(async (req, res) => {
   res.json({ mensagem: 'Senha redefinida com sucesso' });
 }));
 
+// Atualizar perfil (nome)
+router.put('/perfil', autenticar, asyncHandler(async (req, res) => {
+  const { nome } = req.body;
+  if (!nome) return res.status(400).json({ erro: 'Nome é obrigatório' });
+
+  await pool.query('UPDATE users SET nome = $1 WHERE id = $2', [nome, req.usuario.id]);
+  res.json({ mensagem: 'Perfil atualizado', usuario: { ...req.usuario, nome } });
+}));
+
+// Trocar senha
+router.put('/trocar-senha', autenticar, asyncHandler(async (req, res) => {
+  const { senha_atual, nova_senha } = req.body;
+  if (!senha_atual || !nova_senha) {
+    return res.status(400).json({ erro: 'Senha atual e nova senha são obrigatórias' });
+  }
+  if (nova_senha.length < 6) {
+    return res.status(400).json({ erro: 'Nova senha deve ter no mínimo 6 caracteres' });
+  }
+
+  const { rows } = await pool.query('SELECT senha_hash FROM users WHERE id = $1', [req.usuario.id]);
+  const valida = await bcrypt.compare(senha_atual, rows[0].senha_hash);
+  if (!valida) return res.status(401).json({ erro: 'Senha atual incorreta' });
+
+  const hash = await bcrypt.hash(nova_senha, 10);
+  await pool.query('UPDATE users SET senha_hash = $1 WHERE id = $2', [hash, req.usuario.id]);
+  res.json({ mensagem: 'Senha alterada com sucesso' });
+}));
+
 // Logout (registro de auditoria)
 router.post('/logout', autenticar, asyncHandler(async (req, res) => {
   await pool.query(

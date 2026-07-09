@@ -10,14 +10,16 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-40 bg-ink/95 backdrop-blur-sm text-paper px-6 py-3 flex justify-between items-center border-b border-paper/10">
       <div className="flex items-center gap-4">
-        <span className="font-mono font-medium tracking-wide text-sm md:text-base">
+        <Link to="/" className="font-mono font-medium tracking-wide text-sm md:text-base hover:opacity-80 transition-opacity">
           ESTOQUE<span className="text-stamp">•</span>CONTROLE
-        </span>
-        <Link
-          to={location.pathname === '/relatorios' ? '/' : '/relatorios'}
-          className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono"
-        >
-          {location.pathname === '/relatorios' ? 'estoque' : 'relatórios'}
+        </Link>
+        <Link to="/relatorios"
+          className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
+          relatórios
+        </Link>
+        <Link to="/perfil"
+          className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
+          perfil
         </Link>
       </div>
       <div className="flex items-center gap-3 md:gap-4 text-sm font-mono">

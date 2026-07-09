@@ -8,6 +8,7 @@ import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Relatorios from './pages/Relatorios.jsx';
+import Perfil from './pages/Perfil.jsx';
 
 function RotaPrivada({ children }) {
   const { usuario } = useAuth();
@@ -33,6 +34,14 @@ function AppRoutes() {
         element={
           <RotaPrivada>
             <Relatorios />
+          </RotaPrivada>
+        }
+      />
+      <Route
+        path="/perfil"
+        element={
+          <RotaPrivada>
+            <Perfil />
           </RotaPrivada>
         }
       />
