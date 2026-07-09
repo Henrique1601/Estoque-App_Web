@@ -83,7 +83,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
     return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
   }, [aoFechar]);
 
-  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', cor: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
+  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', quantidade: '', categoria: '', cor: '', codigo_barras: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
 
@@ -101,6 +101,7 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
         quantidade: Number(form.quantidade),
         categoria: form.categoria || undefined,
         cor: form.cor || undefined,
+        codigo_barras: form.codigo_barras || undefined,
       });
       aoCriar();
       aoFechar();
@@ -179,6 +180,13 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar }) {
           <input value={form.categoria} placeholder="opcional"
             onChange={(e) => setForm({ ...form, categoria: e.target.value })}
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">código de barras</label>
+          <input value={form.codigo_barras} placeholder="opcional"
+            onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
         </div>
 
         <SelectorCores value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />
@@ -408,6 +416,51 @@ export default function Dashboard() {
             >
               recalcular
             </button>
+            <button
+              onClick={async () => {
+                try {
+                  const blob = await api.exportarCSV();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = 'produtos.csv';
+                  document.body.appendChild(a); a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  addToast('CSV exportado', 'success');
+                } catch (err) {
+                  addToast('Erro ao exportar: ' + err.message, 'error');
+                }
+              }}
+              className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors"
+              aria-label="Exportar produtos como CSV"
+            >
+              csv
+            </button>
+            <label className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors cursor-pointer" aria-label="Importar produtos de CSV">
+              importar
+              <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const texto = await file.text();
+                  const linhas = texto.split('\n').map((l) => l.trim()).filter(Boolean);
+                  if (linhas.length < 2) { addToast('CSV vazio', 'error'); return; }
+                  const cabecalho = linhas[0].split(',').map((h) => h.trim().toLowerCase());
+                  const produtos = linhas.slice(1).map((linha) => {
+                    const vals = linha.split(',').map((v) => v.trim().replace(/^"(.*)"$/, '$1'));
+                    const obj = {};
+                    cabecalho.forEach((h, i) => { obj[h] = vals[i] || undefined; });
+                    return obj;
+                  });
+                  const res = await api.importarProdutos(produtos);
+                  addToast(`${res.criados} produtos importados${res.erros?.length ? `, ${res.erros.length} erros` : ''}`, res.erros?.length ? 'warning' : 'success');
+                  setReloadKey((k) => k + 1);
+                } catch (err) {
+                  addToast('Erro ao importar: ' + err.message, 'error');
+                }
+                e.target.value = '';
+              }} />
+            </label>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">

@@ -64,4 +64,10 @@ export async function migrate() {
     await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT NOW()`);
     console.log('Migration: coluna criado_em adicionada em produtos');
   } catch (_) {}
+
+  // Adiciona coluna codigo_barras se não existir
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS codigo_barras VARCHAR(50)`);
+    console.log('Migration: coluna codigo_barras adicionada em produtos');
+  } catch (_) {}
 }

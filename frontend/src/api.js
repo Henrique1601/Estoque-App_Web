@@ -34,6 +34,15 @@ async function request(path, options = {}) {
   return resp.json();
 }
 
+async function requestBlob(path) {
+  const token = getToken();
+  const resp = await fetch(`${API_URL}${path}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!resp.ok) throw new Error(`Erro ${resp.status}`);
+  return resp.blob();
+}
+
 export const api = {
   login: (email, senha) =>
     request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
@@ -83,4 +92,9 @@ export const api = {
   logout: () => request('/api/auth/logout', { method: 'POST' }),
 
   cotacao: () => request('/api/cotacao'),
+
+  exportarCSV: (lojaId) => requestBlob(`/api/produtos/exportar${lojaId ? `?loja_id=${lojaId}` : ''}`),
+
+  importarProdutos: (produtos) =>
+    request('/api/produtos/importar', { method: 'POST', body: JSON.stringify({ produtos }) }),
 };

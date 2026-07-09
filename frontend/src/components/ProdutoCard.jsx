@@ -23,6 +23,7 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
     valor_usd: produto.valor_usd ?? '', valor_brl: produto.valor_brl ?? '',
     quantidade: produto.quantidade, categoria: produto.categoria ?? '',
     cor: produto.cor ?? '', observacao: produto.observacao ?? '',
+    codigo_barras: produto.codigo_barras ?? '',
   });
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -40,6 +41,7 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
         categoria: form.categoria || undefined,
         cor: form.cor || undefined,
         observacao: form.observacao || undefined,
+        codigo_barras: form.codigo_barras || undefined,
       });
       aoSalvar();
       aoFechar();
@@ -105,6 +107,13 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
           <input value={form.categoria} placeholder="opcional"
             onChange={(e) => setForm({ ...form, categoria: e.target.value })}
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">código de barras</label>
+          <input value={form.codigo_barras} placeholder="opcional"
+            onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
         </div>
 
         <div>

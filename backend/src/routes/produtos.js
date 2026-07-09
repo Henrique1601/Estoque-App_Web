@@ -91,8 +91,102 @@ router.post('/recalcular', asyncHandler(async (req, res) => {
   res.json(resultado);
 }));
 
+// Exporta produtos como CSV
+router.get('/exportar', asyncHandler(async (req, res) => {
+  const { role, loja_id } = req.usuario;
+  const { loja_id: filtroLoja } = req.query;
+
+  const condicoes = [];
+  const params = [];
+
+  if (role === 'admin') {
+    if (filtroLoja) { params.push(filtroLoja); condicoes.push(`loja_id = $${params.length}`); }
+  } else {
+    params.push(loja_id); condicoes.push(`loja_id = $${params.length}`);
+  }
+
+  const where = condicoes.length > 0 ? ' WHERE ' + condicoes.join(' AND ') : '';
+  const { rows } = await pool.query(`SELECT * FROM produtos${where} ORDER BY nome`, params);
+
+  const cabecalho = 'nome,moeda,valor_usd,valor_brl,quantidade,categoria,cor,codigo_barras,observacao\n';
+  const linhas = rows.map((p) => {
+    const esc = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    return [esc(p.nome), p.moeda, p.valor_usd ?? '', p.valor_brl ?? '', p.quantidade, esc(p.categoria), esc(p.cor), esc(p.codigo_barras), esc(p.observacao)].join(',');
+  }).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="produtos.csv"');
+  res.send(cabecalho + linhas);
+}));
+
+// Importa produtos via JSON array
+router.post('/importar', asyncHandler(async (req, res) => {
+  const { produtos: lista } = req.body;
+  if (!Array.isArray(lista) || lista.length === 0) {
+    return res.status(400).json({ erro: 'Envie um array "produtos" com pelo menos 1 item' });
+  }
+
+  const criados = [];
+  const erros = [];
+
+  for (let i = 0; i < lista.length; i++) {
+    const item = lista[i];
+    const idx = i + 1;
+    try {
+      if (!item.nome || !item.loja_id || item.quantidade == null) {
+        erros.push({ linha: idx, motivo: 'Campos obrigatórios: nome, loja_id, quantidade' });
+        continue;
+      }
+      if (item.quantidade < 0) {
+        erros.push({ linha: idx, motivo: 'quantidade não pode ser negativa' });
+        continue;
+      }
+      if (!lojaPermitida(req, item.loja_id)) {
+        erros.push({ linha: idx, motivo: 'Sem permissão para essa loja' });
+        continue;
+      }
+      const moedaFinal = item.moeda === 'BRL' ? 'BRL' : 'USD';
+      if (moedaFinal === 'USD' && (item.valor_usd == null || item.valor_usd <= 0)) {
+        erros.push({ linha: idx, motivo: 'valor_usd deve ser maior que zero' });
+        continue;
+      }
+      if (moedaFinal === 'BRL' && (item.valor_brl == null || item.valor_brl <= 0)) {
+        erros.push({ linha: idx, motivo: 'valor_brl deve ser maior que zero' });
+        continue;
+      }
+
+      const { rows } = await pool.query(
+        `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [item.nome, item.loja_id, moedaFinal, item.valor_usd ?? null, item.valor_brl ?? null, item.quantidade, item.categoria ?? null, item.cor ?? null, item.observacao ?? null, item.codigo_barras ?? null]
+      );
+
+      await pool.query(
+        `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by)
+         VALUES ($1, 'entrada', $2, 0, $2, $3)`,
+        [rows[0].id, item.quantidade, req.usuario.id]
+      );
+      await pool.query(
+        `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+         VALUES ($1, 'criar_produto', 'produto', $2, $3)`,
+        [req.usuario.id, rows[0].id, JSON.stringify({ nome: item.nome, origem: 'import' })]
+      );
+
+      criados.push(rows[0].id);
+    } catch (err) {
+      erros.push({ linha: idx, motivo: err.message });
+    }
+  }
+
+  res.json({ criados: criados.length, erros });
+}));
+
 router.post('/', asyncHandler(async (req, res) => {
-  const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
+  const { nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
 
   if (!nome || !loja_id || quantidade == null) {
     return res.status(400).json({ erro: 'Campos obrigatórios: nome, loja_id, quantidade' });
@@ -114,9 +208,9 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null]
+    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null, codigo_barras ?? null]
   );
 
   const qtd = Number(quantidade);
@@ -138,7 +232,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
 router.put('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao } = req.body;
+  const { nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
 
   if (quantidade != null && quantidade < 0) {
     return res.status(400).json({ erro: 'quantidade não pode ser negativa' });
@@ -161,9 +255,10 @@ router.put('/:id', asyncHandler(async (req, res) => {
        categoria = COALESCE($5, categoria),
        cor = COALESCE($6, cor),
        observacao = COALESCE($7, observacao),
+       codigo_barras = COALESCE($8, codigo_barras),
        atualizado_em = NOW()
-     WHERE id = $8 RETURNING *`,
-    [nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, id]
+     WHERE id = $9 RETURNING *`,
+    [nome, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras ?? null, id]
   );
 
   const qtdPos = Number(rows[0].quantidade);
