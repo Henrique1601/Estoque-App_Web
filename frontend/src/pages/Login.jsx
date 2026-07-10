@@ -61,7 +61,7 @@ export default function Login() {
         </div>
 
         {erro && (
-          <p className="text-sm text-stamp font-mono bg-stamp/5 border border-stamp/20 rounded-md px-3 py-2">{erro}</p>
+          <p className="text-sm text-stamp font-mono bg-stamp/5 border border-stamp/20 rounded-md px-3 py-2" role="alert">{erro}</p>
         )}
 
         <button

@@ -52,7 +52,7 @@ function CompararLojasModal({ produtos, carregando, aoFechar }) {
       <div ref={ref} className="bg-paper rounded-md border border-ink/12 w-full max-w-3xl max-h-[80vh] flex flex-col card-enter">
         <div className="flex items-center justify-between px-5 py-4 border-b border-ink/10">
           <h2 className="font-mono text-sm font-medium text-ink tracking-wide">Comparar lojas</h2>
-          <button onClick={aoFechar} className="text-ink/40 hover:text-ink text-lg leading-none">&times;</button>
+          <button onClick={aoFechar} aria-label="Fechar" className="text-ink/40 hover:text-ink text-lg leading-none">&times;</button>
         </div>
         <div className="overflow-auto p-5">
           {carregando ? (
@@ -401,10 +401,26 @@ export default function Dashboard() {
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
         {(usuario.role === 'admin') && abasComVendidos.length > 0 && (
           <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Lojas">
-            {abasComVendidos.map((ab) => (
+            {abasComVendidos.map((ab, i) => (
               <button
                 key={ab.id} role="tab" aria-selected={aba === ab.id}
                 onClick={() => setAba(ab.id)}
+                onKeyDown={(e) => {
+                  const tabs = e.currentTarget.parentElement?.querySelectorAll('[role="tab"]');
+                  if (!tabs) return;
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = (i + 1) % tabs.length;
+                    tabs[next].focus();
+                    tabs[next].click();
+                  }
+                  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = (i - 1 + tabs.length) % tabs.length;
+                    tabs[prev].focus();
+                    tabs[prev].click();
+                  }
+                }}
                 className={`folder-tab whitespace-nowrap px-4 py-2 text-sm font-medium font-mono transition-all flex items-center gap-2 ${
                   aba === ab.id ? 'bg-paper text-ink' : 'bg-kraft-dark/30 text-ink/60 hover:text-ink/80'
                 }`}
@@ -624,7 +640,8 @@ export default function Dashboard() {
             </button>
             <button disabled={pagina <= 1}
               onClick={() => setPagina(pagina - 1)}
-              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors"
+              aria-label="Página anterior">
               &lt;
             </button>
             <span className="text-xs font-mono text-ink/60 px-3">
@@ -632,7 +649,8 @@ export default function Dashboard() {
             </span>
             <button disabled={pagina >= totalPaginas}
               onClick={() => setPagina(pagina + 1)}
-              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors">
+              className="text-xs font-mono text-ink/50 hover:text-ink disabled:opacity-30 px-2 py-1 rounded border border-ink/10 transition-colors"
+              aria-label="Próxima página">
               &gt;
             </button>
             <button disabled={pagina >= totalPaginas}

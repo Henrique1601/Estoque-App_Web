@@ -158,6 +158,8 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
 }
 
 function MiniFormReservar({ produto, aoFechar, aoSalvar }) {
+  const ref = useRef(null);
+  useFocusTrap(true, ref);
   const [clienteNome, setClienteNome] = useState('');
   const [clienteTel, setClienteTel] = useState('');
   const [clienteObs, setClienteObs] = useState('');
@@ -185,11 +187,18 @@ function MiniFormReservar({ produto, aoFechar, aoSalvar }) {
     }
   }
 
+  useEffect(() => {
+    salvarFoco();
+    function handleEsc(e) { if (e.key === 'Escape') aoFechar(); }
+    document.addEventListener('keydown', handleEsc);
+    return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
+  }, [aoFechar]);
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/30 backdrop-blur-sm p-4"
       role="dialog" aria-modal="true" aria-label="Reservar produto"
       onClick={(e) => e.target === e.currentTarget && aoFechar()}>
-      <form onSubmit={handleSubmit}
+      <form onSubmit={handleSubmit} ref={ref}
         className="bg-paper rounded-md border border-ink/12 p-5 w-full max-w-sm space-y-3">
         <h3 className="font-mono text-sm font-medium text-ink">Reservar &ldquo;{produto.nome}&rdquo;</h3>
         <div>

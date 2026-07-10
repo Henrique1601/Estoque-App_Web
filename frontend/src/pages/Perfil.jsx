@@ -65,6 +65,7 @@ export default function Perfil() {
           <input required value={nome}
             onChange={(e) => setNome(e.target.value)}
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper font-mono"
+            aria-label="Nome"
           />
           <button type="submit" disabled={salvando}
             className="bg-ink text-paper px-4 py-2 rounded-md text-sm font-medium btn-press disabled:opacity-50">

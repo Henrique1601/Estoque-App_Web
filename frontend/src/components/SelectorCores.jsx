@@ -8,9 +8,9 @@ export default function SelectorCores({ value, onChange, simples }) {
     return (
       <div>
         <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">cor</label>
-        <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2" role="listbox" aria-label="Cores sugeridas">
+        <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto mb-2" role="group" aria-label="Cores sugeridas">
           {CORES_CELULAR.slice(0, 30).map((cor) => (
-            <button key={cor} type="button" role="option" aria-selected={value === cor}
+            <button key={cor} type="button" aria-pressed={value === cor}
               onClick={() => onChange(cor)}
               className={`text-xs px-2 py-1 rounded border transition-all ${
                 value === cor
@@ -27,7 +27,7 @@ export default function SelectorCores({ value, onChange, simples }) {
           className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" aria-label="Cor personalizada" />
         {value && (
           <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono" aria-live="polite">
-            <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
+            <span className="inline-block w-3 h-3 rounded-full border border-ink/20" aria-hidden="true"
               style={{ backgroundColor: corToHex(value) }} />
             {value}
           </span>
@@ -48,10 +48,10 @@ export default function SelectorCores({ value, onChange, simples }) {
         className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper mb-2"
         aria-label="Buscar cor"
       />
-      {pesquisa && filtradas.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto mb-2 p-1.5 border border-ink/10 rounded-md bg-kraft-dark/10" role="listbox" aria-label="Cores sugeridas">
+          {pesquisa && filtradas.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto mb-2 p-1.5 border border-ink/10 rounded-md bg-kraft-dark/10" role="group" aria-label="Cores sugeridas">
           {filtradas.slice(0, 20).map((cor) => (
-            <button key={cor} type="button" role="option" aria-selected={value === cor}
+            <button key={cor} type="button" aria-pressed={value === cor}
               onClick={() => { onChange(cor); setPesquisa(''); }}
               className={`text-xs px-2 py-1 rounded border transition-all ${
                 value === cor
@@ -70,7 +70,7 @@ export default function SelectorCores({ value, onChange, simples }) {
       />
       {value && (
         <span className="inline-flex items-center gap-1.5 text-xs text-ink/70 mt-1 font-mono" aria-live="polite">
-          <span className="inline-block w-3 h-3 rounded-full border border-ink/20"
+          <span className="inline-block w-3 h-3 rounded-full border border-ink/20" aria-hidden="true"
             style={{ backgroundColor: corToHex(value) }}
           />
           {value}
