@@ -113,3 +113,52 @@
 - [x] `Perfil.jsx` com formulários de nome e senha
 - [x] Rota `/perfil` + link no Navbar
 - [x] `setUsuario` exposto no AuthContext para atualizar nome em tempo real
+
+---
+
+## Equipe + Status + Cliente
+
+- [x] Papel `vendedor` (só adiciona produto e muda status, sem editar/remover/ver custo/relatórios)
+- [x] Colunas `status`, `cliente_nome`, `cliente_telefone`, `cliente_observacao` em produtos
+- [x] Middleware `autorizar(...roles)` + `filtrarVendedor()`
+- [x] `POST /api/produtos/:id/status` (disponivel→reservado→vendido)
+- [x] Tag de status colorida no card, dados do cliente, botões de ação por role
+- [x] Aba "Vendidos" no Dashboard (admin)
+- [x] `Spec-Equipe-Status-Cliente.md`
+
+---
+
+## Acessibilidade (a11y)
+
+- [x] Focus trap no MiniFormReservar
+- [x] Navegação por setas nas abas (tablist)
+- [x] `aria-label` nos botões ×, <, > da paginação
+- [x] `role="alert"` nas mensagens de erro (Login, Register, ForgotPassword)
+- [x] Swatches decorativos com `aria-hidden="true"`
+- [x] `role="option"` → `aria-pressed` no SelectorCores
+
+---
+
+## Admin criar usuários
+
+- [x] `GET /api/auth/usuarios` — listar todos os usuários (admin)
+- [x] `GerenciarUsuarios.jsx` — formulário + tabela
+- [x] Rota `/admin/usuarios` + link no Navbar
+
+---
+
+## Histórico de movimentações
+
+- [x] `GET /api/movimentacoes` com JOINs e filtros (tipo, loja, data, busca)
+- [x] `Movimentacoes.jsx` — tabela com paginação, filtros, cores por tipo
+- [x] Rota `/movimentacoes` + link no Navbar (admin/gerente)
+
+---
+
+## Parte G — Midia + IMEI + Observacao no cadastro
+
+- [ ] Campo `imei` em produtos (VARCHAR)
+- [ ] Campo `observacao` no modal **criar** produto (hoje só existe no editar)
+- [ ] Upload de imagens/vídeos — endpoint `POST /api/upload` e coluna `midia_url` em produtos
+- [ ] Visualização de mídia no ProdutoCard
+- [ ] `Spec-Midia-Imei.md`

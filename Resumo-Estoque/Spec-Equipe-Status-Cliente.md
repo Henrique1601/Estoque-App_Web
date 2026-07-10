@@ -21,17 +21,17 @@ Migration em `migrate.js` com `ADD COLUMN IF NOT EXISTS` sequential.
 
 ## Permissões
 
-| Ação | admin | gerente | vendedor |
-|------|-------|---------|----------|
-| Ver produtos (loja dele) | ✅ | ✅ | ✅ |
-| Ver produtos (outras lojas) | ✅ | ❌ | ❌ |
-| Adicionar produto | ✅ | ✅ | ✅ |
-| Editar preço/nome/qtd/cor/categoria | ✅ | ✅ | ❌ |
-| Mudar status + cliente info | ✅ | ✅ | ✅ |
-| Remover produto | ✅ | ✅ | ❌ |
-| Ver custo/margem | ✅ | ✅ | ❌ |
-| Relatórios / exportar / importar | ✅ | ✅ | ❌ |
-| Ver vendidos (admin dashboard) | ✅ | ❌ | ❌ |
+| Ação                                | admin | gerente | vendedor |
+| ----------------------------------- | ----- | ------- | -------- |
+| Ver produtos (loja dele)            | ✅     | ✅       | ✅        |
+| Ver produtos (outras lojas)         | ✅     | ❌       | ❌        |
+| Adicionar produto                   | ✅     | ✅       | ✅        |
+| Editar preço/nome/qtd/cor/categoria | ✅     | ✅       | ❌        |
+| Mudar status + cliente info         | ✅     | ✅       | ✅        |
+| Remover produto                     | ✅     | ✅       | ❌        |
+| Ver custo/margem                    | ✅     | ✅       | ❌        |
+| Relatórios / exportar / importar    | ✅     | ✅       | ❌        |
+| Ver vendidos (admin dashboard)      | ✅     | ❌       | ❌        |
 
 Middleware `autorizar(...papéis)` no backend; `vendedor` recebe response sem `custo_usd`, `custo_brl`, `margem`.
 

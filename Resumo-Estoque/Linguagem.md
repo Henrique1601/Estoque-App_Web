@@ -51,6 +51,15 @@ _Evitar_: Todas as lojas, visão geral, loja central
 **Loja Física**: loja real no banco de dados (Loja Games, Loja Litoral). Ao selecionar uma aba de loja física, a query filtra por `loja_id`.
 _Evitar_: Loja virtual, departamento
 
+**IMEI**: International Mobile Equipment Identity — código único de 15 dígitos que identifica o hardware do celular. Campo opcional no produto, validado para 15 dígitos.
+_Evitar_: Número de série, serial, ID do aparelho
+
+**Observação**: anotação textual opcional sobre o produto (estado físico, avarias, acessórios incluídos, etc). Disponível tanto no cadastro quanto na edição.
+_Evitar_: Nota, comentário, descrição
+
+**Mídia**: arquivo de imagem ou vídeo anexado ao produto. O upload é feito por endpoint dedicado e a URL é armazenada em `midia_url`. A visualização é inline no card (thumbnail) com opção de expandir.
+_Evitar_: Anexo, foto, arquivo
+
 ## Vendas
 
 **Venda**: registro de saída de produtos que decrementa a quantidade em estoque. Não há histórico persistido de vendas individuais.
