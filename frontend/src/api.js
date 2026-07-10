@@ -113,4 +113,7 @@ export const api = {
 
   criarUsuario: (dados) =>
     request('/api/auth/criar-usuario', { method: 'POST', body: JSON.stringify(dados) }),
+
+  listarUsuarios: () =>
+    request('/api/auth/usuarios'),
 };

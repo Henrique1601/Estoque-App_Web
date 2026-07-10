@@ -53,6 +53,14 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
   res.json({ token, usuario: payload });
 }));
 
+// Admin lista todos os usuários
+router.get('/usuarios', autorizar('admin'), asyncHandler(async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, nome, email, role, loja_id, criado_em FROM users ORDER BY criado_em DESC`
+  );
+  res.json(rows);
+}));
+
 // Admin cria usuário com papel específico
 router.post('/criar-usuario', autorizar('admin'), asyncHandler(async (req, res) => {
   const { nome, email, senha, role, loja_id } = req.body;
