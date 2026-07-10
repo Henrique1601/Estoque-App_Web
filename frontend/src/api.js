@@ -116,4 +116,17 @@ export const api = {
 
   listarUsuarios: () =>
     request('/api/auth/usuarios'),
+
+  listarMovimentacoes: ({ tipo, loja_id, busca, data_inicio, data_fim, page, limit } = {}) => {
+    const params = new URLSearchParams();
+    if (tipo) params.set('tipo', tipo);
+    if (loja_id) params.set('loja_id', loja_id);
+    if (busca) params.set('busca', busca);
+    if (data_inicio) params.set('data_inicio', data_inicio);
+    if (data_fim) params.set('data_fim', data_fim);
+    if (page) params.set('page', page);
+    if (limit) params.set('limit', limit);
+    const query = params.toString();
+    return request(`/api/movimentacoes${query ? `?${query}` : ''}`);
+  },
 };

@@ -19,6 +19,12 @@ export default function Navbar() {
             relatórios
           </Link>
         )}
+        {usuario.role !== 'vendedor' && (
+          <Link to="/movimentacoes"
+            className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">
+            movimentações
+          </Link>
+        )}
         {usuario.role === 'admin' && (
           <Link to="/admin/usuarios"
             className="text-[10px] uppercase tracking-wider text-paper/60 hover:text-paper transition-colors font-mono">

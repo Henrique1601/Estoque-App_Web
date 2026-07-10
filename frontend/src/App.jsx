@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import Relatorios from './pages/Relatorios.jsx';
 import Perfil from './pages/Perfil.jsx';
 import GerenciarUsuarios from './pages/GerenciarUsuarios.jsx';
+import Movimentacoes from './pages/Movimentacoes.jsx';
 
 function RotaPrivada({ children }) {
   const { usuario } = useAuth();
@@ -51,6 +52,14 @@ function AppRoutes() {
         element={
           <RotaPrivada>
             <GerenciarUsuarios />
+          </RotaPrivada>
+        }
+      />
+      <Route
+        path="/movimentacoes"
+        element={
+          <RotaPrivada>
+            <Movimentacoes />
           </RotaPrivada>
         }
       />
