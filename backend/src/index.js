@@ -12,6 +12,7 @@ import produtosRoutes from './routes/produtos.js';
 import lojasRoutes from './routes/lojas.js';
 import cotacaoRoutes from './routes/cotacao.js';
 import movimentacoesRoutes from './routes/movimentacoes.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/produtos', produtosRoutes);
 app.use('/api/lojas', lojasRoutes);
 app.use('/api/cotacao', cotacaoRoutes);
 app.use('/api/movimentacoes', movimentacoesRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Error handler global
 app.use((err, req, res, next) => {

@@ -56,3 +56,7 @@ git add -A && git commit -m "msg" && git push
 - Skeleton loading durante fetch
 - Cache de cotação 6h no backend
 - Vite bundle com tree-shaking
+
+## Env vars (Railway)
+- Backend: `JWT_SECRET`, `DATABASE_URL`, `FRONTEND_URL`, `CLOUDINARY_URL` (upload de imagens/vídeos)
+- Frontend: `VITE_API_URL`

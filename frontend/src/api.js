@@ -117,6 +117,19 @@ export const api = {
   listarUsuarios: () =>
     request('/api/auth/usuarios'),
 
+  uploadMedia: async (arquivo) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    const resp = await fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+    });
+    if (!resp.ok) throw new Error('Erro ao fazer upload');
+    return resp.json();
+  },
+
   listarMovimentacoes: ({ tipo, loja_id, busca, data_inicio, data_fim, page, limit } = {}) => {
     const params = new URLSearchParams();
     if (tipo) params.set('tipo', tipo);

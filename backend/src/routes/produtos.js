@@ -223,7 +223,7 @@ router.post('/importar', autorizar('admin', 'gerente'), asyncHandler(async (req,
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
+  const { nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras, imei, midia_url } = req.body;
 
   if (!nome || !loja_id || quantidade == null) {
     return res.status(400).json({ erro: 'Campos obrigatórios: nome, loja_id, quantidade' });
@@ -245,9 +245,9 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, custo_usd ?? null, custo_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null, codigo_barras ?? null]
+    `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras, imei, midia_url)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+    [nome, loja_id, moedaFinal, valor_usd ?? null, valor_brl ?? null, custo_usd ?? null, custo_brl ?? null, quantidade, categoria ?? null, cor ?? null, observacao ?? null, codigo_barras ?? null, imei ?? null, midia_url ?? null]
   );
 
   const qtd = Number(quantidade);
@@ -270,7 +270,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
 router.put('/:id', autorizar('admin', 'gerente'), asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { nome, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras } = req.body;
+  const { nome, valor_usd, valor_brl, custo_usd, custo_brl, quantidade, categoria, cor, observacao, codigo_barras, imei, midia_url } = req.body;
 
   if (quantidade != null && quantidade < 0) {
     return res.status(400).json({ erro: 'quantidade não pode ser negativa' });
@@ -295,10 +295,12 @@ router.put('/:id', autorizar('admin', 'gerente'), asyncHandler(async (req, res) 
        categoria = COALESCE($7, categoria),
        cor = COALESCE($8, cor),
        observacao = COALESCE($9, observacao),
-       codigo_barras = COALESCE($10, codigo_barras),
-       atualizado_em = NOW()
-     WHERE id = $11 RETURNING *`,
-    [nome, valor_usd, valor_brl, custo_usd ?? null, custo_brl ?? null, quantidade, categoria, cor, observacao, codigo_barras ?? null, id]
+        codigo_barras = COALESCE($10, codigo_barras),
+        imei = COALESCE($11, imei),
+        midia_url = COALESCE($12, midia_url),
+        atualizado_em = NOW()
+      WHERE id = $13 RETURNING *`,
+    [nome, valor_usd, valor_brl, custo_usd ?? null, custo_brl ?? null, quantidade, categoria, cor, observacao, codigo_barras ?? null, imei ?? null, midia_url ?? null, id]
   );
 
   const qtdPos = Number(rows[0].quantidade);

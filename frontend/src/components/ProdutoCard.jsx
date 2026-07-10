@@ -28,9 +28,11 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
     quantidade: produto.quantidade, categoria: produto.categoria ?? '',
     cor: produto.cor ?? '', observacao: produto.observacao ?? '',
     codigo_barras: produto.codigo_barras ?? '',
+    imei: produto.imei ?? '', midia_url: produto.midia_url ?? '',
   });
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [enviandoMidia, setEnviandoMidia] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -48,6 +50,8 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
         cor: form.cor || undefined,
         observacao: form.observacao || undefined,
         codigo_barras: form.codigo_barras || undefined,
+        imei: form.imei || undefined,
+        midia_url: form.midia_url || undefined,
       });
       aoSalvar();
       aoFechar();
@@ -132,6 +136,43 @@ function ModalEditarProduto({ produto, aoFechar, aoSalvar }) {
         </div>
 
         <SelectorCores simples value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">IMEI</label>
+          <input value={form.imei} placeholder="opcional" maxLength={15}
+            onChange={(e) => setForm({ ...form, imei: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">imagem</label>
+          {form.midia_url ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-ink/60 font-mono truncate">1 imagem</span>
+              <button type="button" onClick={() => setForm({ ...form, midia_url: '' })}
+                className="text-[10px] text-stamp hover:text-stamp/70 font-mono">remover</button>
+            </div>
+          ) : (
+            <label className="inline-flex items-center gap-2 text-xs font-mono text-twine hover:text-ink cursor-pointer border border-ink/20 rounded-md px-3 py-2 transition-colors">
+              {enviandoMidia ? 'enviando...' : 'upload'}
+              <input type="file" accept="image/*,video/mp4" className="hidden" disabled={enviandoMidia}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setEnviandoMidia(true);
+                  try {
+                    const res = await api.uploadMedia(file);
+                    setForm({ ...form, midia_url: res.url });
+                  } catch (err) {
+                    setErro(err.message);
+                  } finally {
+                    setEnviandoMidia(false);
+                    e.target.value = '';
+                  }
+                }} />
+            </label>
+          )}
+        </div>
 
         <div>
           <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">observação</label>
@@ -371,6 +412,23 @@ export default function ProdutoCard({ produto, onAtualizar, lojaNome }) {
 
         {produto.observacao && (
           <p className="text-xs text-stamp/80 mt-1 italic leading-relaxed">{produto.observacao}</p>
+        )}
+
+        {produto.imei && (
+          <p className="text-[10px] font-mono text-ink/40 mt-1">IMEI: {produto.imei}</p>
+        )}
+
+        {produto.midia_url && (
+          <div className="mt-2">
+            {produto.midia_url.match(/\.(mp4|webm|ogg)$/i) ? (
+              <video src={produto.midia_url} controls className="w-full max-h-48 rounded-md object-cover" />
+            ) : (
+              <img src={produto.midia_url} alt="" loading="lazy"
+                className="w-full max-h-48 rounded-md object-cover cursor-pointer"
+                onClick={() => window.open(produto.midia_url, '_blank')}
+              />
+            )}
+          </div>
         )}
 
         {podeEditar ? (

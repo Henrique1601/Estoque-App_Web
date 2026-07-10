@@ -103,7 +103,8 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar, papel }) {
     return () => { restaurarFoco(); document.removeEventListener('keydown', handleEsc); };
   }, [aoFechar]);
 
-  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', custo_usd: '', custo_brl: '', quantidade: '', categoria: '', cor: '', codigo_barras: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
+  const [form, setForm] = useState({ nome: '', moeda: 'USD', valor_usd: '', valor_brl: '', custo_usd: '', custo_brl: '', quantidade: '', categoria: '', cor: '', codigo_barras: '', observacao: '', imei: '', midia_url: '', loja_id: lojaPadrao || (lojas[0]?.id || '') });
+  const [enviandoMidia, setEnviandoMidia] = useState(false);
   const [erro, setErro] = useState('');
   const [criando, setCriando] = useState(false);
 
@@ -124,6 +125,9 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar, papel }) {
         categoria: form.categoria || undefined,
         cor: form.cor || undefined,
         codigo_barras: form.codigo_barras || undefined,
+        observacao: form.observacao || undefined,
+        imei: form.imei || undefined,
+        midia_url: form.midia_url || undefined,
       });
       aoCriar();
       aoFechar();
@@ -218,6 +222,52 @@ function ModalCriarProduto({ lojas, lojaPadrao, aoFechar, aoCriar, papel }) {
           <input value={form.codigo_barras} placeholder="opcional"
             onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })}
             className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">IMEI</label>
+          <input value={form.imei} placeholder="opcional" maxLength={15}
+            onChange={(e) => setForm({ ...form, imei: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm font-mono input-tag bg-paper" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">imagem</label>
+            {form.midia_url ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-ink/60 font-mono truncate">1 imagem</span>
+                <button type="button" onClick={() => setForm({ ...form, midia_url: '' })}
+                  className="text-[10px] text-stamp hover:text-stamp/70 font-mono">remover</button>
+              </div>
+            ) : (
+              <label className="inline-flex items-center gap-2 text-xs font-mono text-twine hover:text-ink cursor-pointer border border-ink/20 rounded-md px-3 py-2 transition-colors">
+                {enviandoMidia ? 'enviando...' : 'upload'}
+                <input type="file" accept="image/*,video/mp4" className="hidden" disabled={enviandoMidia}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setEnviandoMidia(true);
+                    try {
+                      const res = await api.uploadMedia(file);
+                      setForm({ ...form, midia_url: res.url });
+                    } catch (err) {
+                      setErro(err.message);
+                    } finally {
+                      setEnviandoMidia(false);
+                      e.target.value = '';
+                    }
+                  }} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] text-twine font-mono uppercase tracking-wider mb-1">observação</label>
+          <textarea value={form.observacao} rows={2}
+            onChange={(e) => setForm({ ...form, observacao: e.target.value })}
+            className="w-full border border-ink/20 rounded-md px-3 py-2 text-sm input-tag bg-paper" />
         </div>
 
         <SelectorCores value={form.cor} onChange={(cor) => setForm({ ...form, cor })} />

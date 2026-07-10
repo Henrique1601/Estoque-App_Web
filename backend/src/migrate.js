@@ -104,4 +104,16 @@ export async function migrate() {
     await pool.query(`ALTER TABLE produtos ADD CONSTRAINT check_status CHECK (status IN ('disponivel', 'reservado', 'vendido'))`);
     console.log('Migration: CHECK constraint para status adicionada');
   } catch (_) {}
+
+  // Adiciona coluna imei
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS imei VARCHAR(15)`);
+    console.log('Migration: coluna imei adicionada em produtos');
+  } catch (_) {}
+
+  // Adiciona coluna midia_url
+  try {
+    await pool.query(`ALTER TABLE produtos ADD COLUMN IF NOT EXISTS midia_url TEXT`);
+    console.log('Migration: coluna midia_url adicionada em produtos');
+  } catch (_) {}
 }
