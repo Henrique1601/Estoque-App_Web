@@ -98,6 +98,22 @@ export const api = {
   importarProdutos: (produtos) =>
     request('/api/produtos/importar', { method: 'POST', body: JSON.stringify({ produtos }) }),
 
+  importarExcel: async (arquivo) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    const resp = await fetch(`${API_URL}/api/produtos/importar-excel`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+    });
+    if (!resp.ok) {
+      const erro = await resp.json().catch(() => ({ erro: 'Erro ao importar' }));
+      throw new Error(erro.erro || `Erro ${resp.status}`);
+    }
+    return resp.json();
+  },
+
   compararProdutos: () => request('/api/produtos/comparar'),
 
   relatorios: () => request('/api/produtos/relatorios'),

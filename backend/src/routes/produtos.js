@@ -1,8 +1,12 @@
 import { Router } from 'express';
+import multer from 'multer';
+import XLSX from 'xlsx';
 import { pool } from '../db.js';
 import { autenticar, autorizar, filtrarVendedor, somenteRole } from '../middleware/auth.js';
 import { obterCotacao, recalcularPrecos } from '../utils/cotacao.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+
+const uploadExcel = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 router.use(autenticar);
@@ -220,6 +224,122 @@ router.post('/importar', autorizar('admin', 'gerente'), asyncHandler(async (req,
   }
 
   res.json({ criados: criados.length, erros });
+}));
+
+router.post('/importar-excel', autorizar('admin', 'gerente'), uploadExcel.single('arquivo'), asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ erro: 'Arquivo Excel obrigatório' });
+  }
+
+  const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const linhas = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+  if (linhas.length === 0) {
+    return res.status(400).json({ erro: 'Planilha vazia' });
+  }
+
+  const colunas = Object.keys(linhas[0]);
+  const colLoja = colunas.find((c) => /loja/i.test(c));
+  const colNome = colunas.find((c) => /produto|nome/i.test(c));
+  const colQtd = colunas.find((c) => /qtd|quantidade|qtde|estoque/i.test(c));
+  const colMoeda = colunas.find((c) => /moeda/i.test(c));
+  const colValorUsd = colunas.find((c) => /valor.*usd|usd/i.test(c));
+  const colValorBrl = colunas.find((c) => /valor.*brl|brl|preço|preco/i.test(c) && !/usd/i.test(c));
+  const colCategoria = colunas.find((c) => /categoria|cat/i.test(c));
+  const colCor = colunas.find((c) => /cor|color/i.test(c));
+  const colObs = colunas.find((c) => /obs|observacao|observação/i.test(c));
+  const colCodBarras = colunas.find((c) => /codigo.*barras|cod.*barras|barras|codbarras|código/i.test(c));
+
+  if (!colNome) {
+    return res.status(400).json({ erro: `Coluna "nome"/"produto" não encontrada. Colunas: ${colunas.join(', ')}` });
+  }
+  if (!colLoja) {
+    return res.status(400).json({ erro: `Coluna "loja" não encontrada. Colunas: ${colunas.join(', ')}` });
+  }
+
+  const lojas = await pool.query('SELECT id, nome FROM lojas');
+  const lojaMap = {};
+  lojas.rows.forEach((l) => { lojaMap[l.nome.toLowerCase()] = l.id; });
+
+  const nomesLojaNaoEncontradas = new Set();
+  const criados = { Count: 0 };
+  const erros = [];
+  const porLoja = {};
+
+  for (let i = 0; i < linhas.length; i++) {
+    const item = linhas[i];
+    const idx = i + 2;
+    try {
+      const nomeLojaExcel = String(item[colLoja]).trim();
+      if (!nomeLojaExcel) {
+        erros.push({ linha: idx, produto: item[colNome], motivo: 'Loja vazia' });
+        continue;
+      }
+
+      const lojaId = lojaMap[nomeLojaExcel.toLowerCase()];
+      if (!lojaId) {
+        nomesLojaNaoEncontradas.add(nomeLojaExcel);
+        erros.push({ linha: idx, produto: item[colNome], motivo: `Loja "${nomeLojaExcel}" não encontrada no sistema` });
+        continue;
+      }
+
+      if (!lojaPermitida(req, lojaId)) {
+        erros.push({ linha: idx, produto: item[colNome], motivo: 'Sem permissão para esta loja' });
+        continue;
+      }
+
+      const nome = String(item[colNome]).trim();
+      if (!nome) {
+        erros.push({ linha: idx, produto: '(vazio)', motivo: 'Nome do produto vazio' });
+        continue;
+      }
+
+      const quantidade = Number(item[colQtd]) || 0;
+      const moeda = colMoeda && String(item[colMoeda]).trim().toUpperCase() === 'BRL' ? 'BRL' : 'USD';
+      const valor_usd = colValorUsd ? Number(item[colValorUsd]) || null : (moeda === 'USD' ? 0 : null);
+      const valor_brl = colValorBrl ? Number(item[colValorBrl]) || null : (moeda === 'BRL' ? 0 : null);
+
+      if (moeda === 'USD' && (valor_usd == null || valor_usd <= 0)) {
+        erros.push({ linha: idx, produto: nome, motivo: 'valor_usd inválido' });
+        continue;
+      }
+      if (moeda === 'BRL' && (valor_brl == null || valor_brl <= 0)) {
+        erros.push({ linha: idx, produto: nome, motivo: 'valor_brl inválido' });
+        continue;
+      }
+
+      const { rows } = await pool.query(
+        `INSERT INTO produtos (nome, loja_id, moeda, valor_usd, valor_brl, quantidade, categoria, cor, observacao, codigo_barras)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [nome, lojaId, moeda, valor_usd ?? null, valor_brl ?? null, quantidade, colCategoria ? (String(item[colCategoria]).trim() || null) : null, colCor ? (String(item[colCor]).trim() || null) : null, colObs ? (String(item[colObs]).trim() || null) : null, colCodBarras ? (String(item[colCodBarras]).trim() || null) : null]
+      );
+
+      await pool.query(
+        `INSERT INTO movimentacoes (produto_id, tipo, quantidade, saldo_anterior, saldo_posterior, created_by)
+         VALUES ($1, 'entrada', $2, 0, $2, $3)`,
+        [rows[0].id, quantidade, req.usuario.id]
+      );
+      await pool.query(
+        `INSERT INTO logs (user_id, acao, entidade, entidade_id, detalhes)
+         VALUES ($1, 'criar_produto', 'produto', $2, $3)`,
+        [req.usuario.id, rows[0].id, JSON.stringify({ nome, lojaId, origem: 'import-excel' })]
+      );
+
+      criados.Count++;
+      porLoja[nomeLojaExcel] = (porLoja[nomeLojaExcel] || 0) + 1;
+    } catch (err) {
+      erros.push({ linha: idx, produto: item[colNome], motivo: err.message });
+    }
+  }
+
+  res.json({
+    criados: criados.Count,
+    porLoja,
+    erros: erros.length > 0 ? erros : undefined,
+    lojasNaoEncontradas: nomesLojaNaoEncontradas.size > 0 ? Array.from(nomesLojaNaoEncontradas) : undefined,
+    colunasDetectadas: { loja: colLoja, nome: colNome, quantidade: colQtd, moeda: colMoeda, valor_usd: colValorUsd, valor_brl: colValorBrl, categoria: colCategoria, cor: colCor, observacao: colObs, codigo_barras: colCodBarras },
+  });
 }));
 
 router.post('/', asyncHandler(async (req, res) => {

@@ -557,7 +557,7 @@ export default function Dashboard() {
             )}
             {usuario.role !== 'vendedor' && (
               <label className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors cursor-pointer" aria-label="Importar produtos de CSV">
-                importar
+                importar csv
                 <input type="file" accept=".csv" className="hidden" onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
@@ -574,6 +574,30 @@ export default function Dashboard() {
                   });
                   const res = await api.importarProdutos(produtos);
                   addToast(`${res.criados} produtos importados${res.erros?.length ? `, ${res.erros.length} erros` : ''}`, res.erros?.length ? 'warning' : 'success');
+                  setReloadKey((k) => k + 1);
+                } catch (err) {
+                  addToast('Erro ao importar: ' + err.message, 'error');
+                }
+                e.target.value = '';
+              }} />
+            </label>
+            )}
+            {usuario.role !== 'vendedor' && (
+              <label className="text-xs font-mono text-twine hover:text-ink border border-ink/10 hover:border-ink/30 rounded-full px-3 py-1 transition-colors cursor-pointer" aria-label="Importar produtos de Excel">
+                excel
+                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const res = await api.importarExcel(file);
+                  const msg = [`${res.criados} produtos importados`];
+                  if (res.porLoja) {
+                    const det = Object.entries(res.porLoja).map(([l, c]) => `${l}: ${c}`).join(', ');
+                    msg.push(`(${det})`);
+                  }
+                  if (res.erros?.length) msg.push(`, ${res.erros.length} erros`);
+                  if (res.lojasNaoEncontradas?.length) msg.push(`, lojas não encontradas: ${res.lojasNaoEncontradas.join(', ')}`);
+                  addToast(msg.join(''), res.erros?.length ? 'warning' : 'success');
                   setReloadKey((k) => k + 1);
                 } catch (err) {
                   addToast('Erro ao importar: ' + err.message, 'error');
